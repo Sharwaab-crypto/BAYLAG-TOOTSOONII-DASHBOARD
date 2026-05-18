@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect } from 'react';
 import {
   Plus, Calendar, BarChart3, FileSpreadsheet, Package, AlertCircle,
   Edit2, Trash2, Search, Boxes, Archive, ChevronRight, Users, DollarSign,
-  ArrowUpRight, ArrowDownRight, Bell, Settings, X,
+  ArrowUpRight, ArrowDownRight, X,
   Calculator, Sigma, Save, TrendingDown, PackagePlus, ArrowDownCircle,
-  ClipboardList, FileText, Download, Receipt, CheckCircle2, Eye, LogOut, Shield
+  ClipboardList, FileText, Download, Receipt, CheckCircle2, Eye, LogOut, Shield, UserPlus
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
@@ -121,6 +121,10 @@ export default function Dashboard({ session, profile }) {
   const [showReconcileModal, setShowReconcileModal] = useState(false);
   const [viewingReconcile, setViewingReconcile] = useState(null);
   const [confirmingReconcileDelete, setConfirmingReconcileDelete] = useState(null);
+
+  // Хэрэглэгчийн удирдлага
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
 
   // Огнооны харагдац
   const MONTHS_MN = ['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
@@ -1281,6 +1285,164 @@ export default function Dashboard({ session, profile }) {
     );
   };
 
+  // ====== ХЭРЭГЛЭГЧИЙН УДИРДЛАГЫН МОДАЛ ======
+  const UserManagementModal = ({ onClose }) => {
+    const [users, setUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(true);
+    const [savingId, setSavingId] = useState(null);
+
+    useEffect(() => {
+      loadUsers();
+    }, []);
+
+    const loadUsers = async () => {
+      setLoadingUsers(true);
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) {
+        alert('Хэрэглэгчид ачаалахад алдаа: ' + error.message);
+      } else {
+        setUsers(data || []);
+      }
+      setLoadingUsers(false);
+    };
+
+    const changeRole = async (userId, newRole) => {
+      if (userId === session?.user?.id && newRole !== 'admin') {
+        if (!window.confirm('Та өөрийнхөө админ эрхээ хасах гэж байна. Үргэлжлүүлэх үү?')) return;
+      }
+      setSavingId(userId);
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+      setSavingId(null);
+      if (error) {
+        alert('Эрх өөрчлөхөд алдаа: ' + error.message);
+      } else {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      }
+    };
+
+    const roleLabels = {
+      admin: { label: 'Админ', color: 'from-rose-500 to-pink-500' },
+      manager: { label: 'Менежер', color: 'from-blue-500 to-indigo-500' },
+      viewer: { label: 'Үзэгч', color: 'from-slate-400 to-slate-500' }
+    };
+
+    return (
+      <Modal onClose={onClose} title="Хэрэглэгчийн удирдлага" icon={Users} maxWidth="max-w-3xl">
+        <div className="space-y-4">
+          {/* Зааварчилгаа */}
+          <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3">
+            <div className="text-xs font-bold text-blue-700 mb-1 flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" /> Эрхүүдийн тайлбар
+            </div>
+            <div className="text-[11px] text-slate-600 space-y-0.5">
+              <div><span className="font-bold text-rose-600">Админ:</span> Бүгдийг засах + хэрэглэгчдийг удирдах</div>
+              <div><span className="font-bold text-blue-600">Менежер:</span> Карт, бараа, тооцоо нэмэх/засах</div>
+              <div><span className="font-bold text-slate-600">Үзэгч:</span> Зөвхөн харах</div>
+            </div>
+          </div>
+
+          {/* Шинэ хэрэглэгч урих */}
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3">
+            <div className="text-xs font-bold text-emerald-700 mb-1.5 flex items-center gap-1.5">
+              <UserPlus className="w-3.5 h-3.5" /> Шинэ хэрэглэгч нэмэх
+            </div>
+            <div className="text-[11px] text-slate-600 mb-2">
+              Шинэ ажилтанд app-ын линкийг илгээгээрэй: <span className="font-mono text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">{window.location.origin}</span>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              Тэр <span className="font-bold">"Бүртгүүлэх"</span> дарж өөрийн и-мэйл, нууц үгээр бүртгүүлнэ. Бүртгүүлсний дараа эндээс эрхийг нь тохируулна (анхдагч нь <span className="font-bold">Үзэгч</span>).
+            </div>
+          </div>
+
+          {/* Хэрэглэгчдийн жагсаалт */}
+          <div>
+            <div className="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+              <span>Бүртгэлтэй хэрэглэгчид ({users.length})</span>
+              <button onClick={loadUsers}
+                      className="text-[10px] text-pink-600 hover:underline font-semibold">
+                Шинэчлэх
+              </button>
+            </div>
+
+            {loadingUsers ? (
+              <div className="py-8 text-center text-sm text-slate-400">Ачаалж байна...</div>
+            ) : users.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-400">Хэрэглэгч алга</div>
+            ) : (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="max-h-[400px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                        <th className="px-3 py-2 text-left">Хэрэглэгч</th>
+                        <th className="px-3 py-2 text-left">И-мэйл</th>
+                        <th className="px-3 py-2 text-center">Эрх</th>
+                        <th className="px-3 py-2 text-right">Бүртгүүлсэн</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {users.map(u => {
+                        const isMe = u.id === session?.user?.id;
+                        const role = roleLabels[u.role] || roleLabels.viewer;
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50">
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${role.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                                  {(u.full_name || u.email).charAt(0).toUpperCase()}
+                                </div>
+                                <div className="text-xs font-bold text-slate-800">
+                                  {u.full_name || '—'}
+                                  {isMe && <span className="ml-1.5 text-[9px] text-pink-600 font-normal">(Та)</span>}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-xs text-slate-600 font-mono">{u.email}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <select
+                                value={u.role}
+                                disabled={savingId === u.id}
+                                onChange={e => changeRole(u.id, e.target.value)}
+                                className={`text-[11px] font-bold px-2 py-1 rounded-md border cursor-pointer ${
+                                  u.role === 'admin' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                  u.role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                  'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                <option value="viewer">Үзэгч</option>
+                                <option value="manager">Менежер</option>
+                                <option value="admin">Админ</option>
+                              </select>
+                              {savingId === u.id && <div className="text-[9px] text-slate-400 mt-0.5">Хадгалж...</div>}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-[10px] text-slate-500 font-mono">
+                              {new Date(u.created_at).toLocaleDateString('mn-MN')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button onClick={onClose}
+                  className="w-full py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200">
+            Хаах
+          </button>
+        </div>
+      </Modal>
+    );
+  };
+
   // ====== БАРАА НЭМЭХ МОДАЛ ======
   const AddProductModal = ({ onClose }) => {
     const [form, setForm] = useState({
@@ -1510,13 +1672,14 @@ export default function Dashboard({ session, profile }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="relative p-2.5 rounded-xl bg-white/80 backdrop-blur hover:bg-white shadow-sm">
-              <Bell className="w-4 h-4 text-slate-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-pink-500 rounded-full"></span>
-            </button>
-            <button className="p-2.5 rounded-xl bg-white/80 backdrop-blur hover:bg-white shadow-sm">
-              <Settings className="w-4 h-4 text-slate-600" />
-            </button>
+            {isAdmin && (
+              <button onClick={() => setShowUserManagement(true)}
+                      title="Хэрэглэгч удирдах"
+                      className="px-3 py-2 rounded-xl bg-white/80 backdrop-blur hover:bg-pink-50 hover:text-pink-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Хэрэглэгчид</span>
+              </button>
+            )}
             <button onClick={handleLogout}
                     title="Гарах"
                     className="px-3 py-2 rounded-xl bg-white/80 backdrop-blur hover:bg-rose-50 hover:text-rose-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
@@ -1569,9 +1732,6 @@ export default function Dashboard({ session, profile }) {
                 </button>
               ))}
             </div>
-            <button className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
-              <Plus className="w-3.5 h-3.5" /> KPI НЭМЭХ
-            </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -2262,6 +2422,7 @@ export default function Dashboard({ session, profile }) {
       {showReceiveStock && <ReceiveStockModal onClose={() => setShowReceiveStock(false)} />}
       {showReconcileModal && <ReconcileModal onClose={() => setShowReconcileModal(false)} />}
       {viewingReconcile && <ViewReconcileModal rec={viewingReconcile} onClose={() => setViewingReconcile(null)} />}
+      {showUserManagement && <UserManagementModal onClose={() => setShowUserManagement(false)} />}
 
       {/* Устгах баталгаажуулах модал */}
       {confirmingDelete && (
