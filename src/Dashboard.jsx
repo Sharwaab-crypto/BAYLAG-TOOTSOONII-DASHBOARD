@@ -1,16 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Plus, Calendar, BarChart3, FileSpreadsheet, Package, AlertCircle,
   Edit2, Trash2, Search, Boxes, Archive, ChevronRight, Users, DollarSign,
   ArrowUpRight, ArrowDownRight, Bell, Settings, X,
   Calculator, Sigma, Save, TrendingDown, PackagePlus, ArrowDownCircle,
-  ClipboardList, FileText, Download, Receipt, CheckCircle2, Eye
+  ClipboardList, FileText, Download, Receipt, CheckCircle2, Eye, LogOut, Shield
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList
 } from 'recharts';
 import * as XLSX from 'xlsx';
+import { supabase } from './supabase';
 
 const GRADIENTS = [
   { id: 'pink',   cls: 'from-fuchsia-400 via-pink-500 to-purple-500',   name: 'Ягаан',    hex: '#ec4899' },
@@ -78,7 +79,15 @@ function Modal({ onClose, title, icon: Icon, children, maxWidth = 'max-w-md' }) 
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ session, profile }) {
+  // Эрхийг шалгах
+  const canEdit = profile?.role === 'admin' || profile?.role === 'manager';
+  const isAdmin = profile?.role === 'admin';
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   const [period, setPeriod] = useState('Сар');
   const [view, setView] = useState('Карт');
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,64 +161,117 @@ export default function Dashboard() {
     }
   }, [period, dateDisplay, selectedYear, customRange]);
 
-  const [departments, setDepartments] = useState([
-    {
-      id: 'delivery', name: 'Delivery', icon: 'users',
-      cards: [
-        { id: 'd1', label: 'GAR HOTLOLT AMJILTTAI', unit: '', gradientId: 'pink',   trend: 12, dailyValues: sampleDaily(247) },
-        { id: 'd2', label: 'GAR HOTLOLT NIIT',      unit: '', gradientId: 'blue',   trend: 8,  dailyValues: sampleDaily(312) },
-        { id: 'd3', label: 'AMJILTTAI LLC',         unit: '', gradientId: 'orange', trend: -3, dailyValues: sampleDaily(158) },
-        { id: 'd4', label: 'NIIT LLC',              unit: '', gradientId: 'green',  trend: 5,  dailyValues: sampleDaily(189) }
-      ]
-    },
-    {
-      id: 'finance', name: 'Finance', icon: 'dollar',
-      cards: [
-        { id: 'f1', label: 'МА ОРЛОГО',            unit: '₮',      gradientId: 'pink',   trend: 15, target: 350000000, dailyValues: sampleDaily(10000000) },
-        { id: 'f2', label: 'ДРАГОН',               unit: '₮',      gradientId: 'blue',   trend: 22, dailyValues: sampleDaily(2450000) },
-        { id: 'f3', label: 'ВОКЗАЛ',               unit: '₮',      gradientId: 'orange', trend: 7,  dailyValues: sampleDaily(1820000) },
-        { id: 'f4', label: 'МЕРЧАНТ',              unit: '₮',      gradientId: 'green',  trend: -2, dailyValues: sampleDaily(3650000) },
-        { id: 'f5', label: 'ИРСЭН БАРАА (ТОО)',   unit: 'ш',      gradientId: 'rose',   trend: 18, dailyValues: sampleDaily(1247) },
-        { id: 'f6', label: 'ИРСЭН БАРАА (₮)',     unit: '₮',      gradientId: 'violet', trend: 14, dailyValues: sampleDaily(8420000) },
-        { id: 'f7', label: 'ИРЖ БУЙ БАРАА (ТОО)', unit: 'ширхэг', gradientId: 'rose',   trend: 9,  dailyValues: sampleDaily(342) },
-        { id: 'f8', label: 'ИРЖ БУЙ БАРАА (₮)',   unit: '₮',      gradientId: 'blue',   trend: 11, dailyValues: sampleDaily(2180000) }
-      ]
-    }
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [departments, setDepartments] = useState([]);
 
-  // Барааны жагсаалт (state)
-  const [products, setProducts] = useState([
-    { id: 'BR-001', code: 'KOFE-AR250',  name: 'Кофе Arabica 250г', category: 'Хүнсний', stock: 124, max: 200, costPrice: 13000, salePrice: 18500, location: 'А-12' },
-    { id: 'BR-002', code: 'SUU-1L',      name: 'Сүү 1л Tetra Pak',  category: 'Хүнсний', stock: 18,  max: 150, costPrice: 2800,  salePrice: 4200,  location: 'А-15' },
-    { id: 'BR-003', code: 'SHOK-PRM',    name: 'Шоколад Premium',    category: 'Чихрийн', stock: 89,  max: 120, costPrice: 8500,  salePrice: 12000, location: 'B-03' },
-    { id: 'BR-004', code: 'TSA-NOG-100', name: 'Цай ногоон 100г',    category: 'Хүнсний', stock: 0,   max: 80,  costPrice: 5500,  salePrice: 8500,  location: 'А-20' },
-    { id: 'BR-005', code: 'US-500',      name: 'Ус 500мл',           category: 'Ундаа',   stock: 412, max: 500, costPrice: 800,   salePrice: 1500,  location: 'C-08' },
-    { id: 'BR-006', code: 'JIGN-CRSP',   name: 'Жигнэмэг Crispy',    category: 'Чихрийн', stock: 12,  max: 100, costPrice: 4200,  salePrice: 6500,  location: 'B-11' },
-    { id: 'BR-007', code: 'SAM-CSH-200', name: 'Самар Cashew 200г',  category: 'Хүнсний', stock: 67,  max: 80,  costPrice: 16000, salePrice: 24000, location: 'А-04' },
-    { id: 'BR-008', code: 'JUSH-OR-1L',  name: 'Жүүс Апельсин 1л',   category: 'Ундаа',   stock: 4,   max: 60,  costPrice: 5200,  salePrice: 7800,  location: 'C-12' }
-  ]);
+  // Барааны жагсаалт (Supabase-аас ачаална)
+  const [products, setProducts] = useState([]);
 
   // Барааны функцүүд
-  const addProduct = (p) => {
+  // Supabase-аас бүх өгөгдөл татах
+  useEffect(() => {
+    loadAllData();
+  }, []);
+
+  const loadAllData = async () => {
+    try {
+      // Хэлтэс + картууд
+      const { data: depts } = await supabase.from('departments').select('*');
+      const { data: cardsData } = await supabase.from('cards').select('*');
+
+      if (depts) {
+        const grouped = depts.map(d => ({
+          id: d.id,
+          name: d.name,
+          icon: d.icon,
+          cards: (cardsData || []).filter(c => c.dept_id === d.id).map(c => ({
+            id: c.id,
+            label: c.label,
+            unit: c.unit || '',
+            gradientId: c.gradient_id || 'pink',
+            trend: c.trend,
+            target: c.target,
+            formula: c.formula,
+            dailyValues: c.daily_values || {}
+          }))
+        }));
+        setDepartments(grouped);
+      }
+
+      // Бараа
+      const { data: prods } = await supabase.from('products').select('*').order('id');
+      if (prods) {
+        setProducts(prods.map(p => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          category: p.category,
+          location: p.location,
+          stock: p.stock,
+          max: p.max_stock,
+          costPrice: Number(p.cost_price),
+          salePrice: Number(p.sale_price)
+        })));
+      }
+
+      // Тооцоо архив
+      const { data: recs } = await supabase
+        .from('reconciliations').select('*')
+        .order('archived_at', { ascending: false });
+      if (recs) {
+        setReconciliations(recs.map(r => ({
+          id: r.id,
+          date: r.date,
+          label: r.label,
+          items: r.items,
+          totalAmount: Number(r.total_amount),
+          notes: r.notes,
+          deductedStock: r.deducted_stock,
+          archivedAt: r.archived_at
+        })));
+      }
+    } catch (err) {
+      console.error('Supabase ачаалах алдаа:', err);
+      alert('Өгөгдөл ачаалахад алдаа гарлаа. Console-г шалгана уу.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Барааны функцүүд
+  const addProduct = async (p) => {
     const nextNum = products.length > 0
       ? Math.max(...products.map(x => parseInt(x.id.replace(/\D/g, '')) || 0)) + 1
       : 1;
     const id = `BR-${String(nextNum).padStart(3, '0')}`;
+
+    const { error } = await supabase.from('products').insert({
+      id, code: p.code, name: p.name, category: p.category, location: p.location,
+      stock: p.stock, max_stock: p.max, cost_price: p.costPrice, sale_price: p.salePrice
+    });
+    if (error) { alert('Бараа нэмэх алдаа: ' + error.message); return; }
+
     setProducts(prev => [...prev, { id, ...p }]);
   };
 
-  const receiveStock = (productId, qty, newCostPrice) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p;
-      const updates = { stock: p.stock + qty };
-      if (newCostPrice && newCostPrice > 0) {
-        // Жигнэсэн дундаж өртөг: (хуучин нөөц * хуучин өртөг + орсон тоо * шинэ өртөг) / нийт нөөц
-        const totalCost = (p.stock * p.costPrice) + (qty * newCostPrice);
-        const totalStock = p.stock + qty;
-        updates.costPrice = totalStock > 0 ? Math.round(totalCost / totalStock) : newCostPrice;
-      }
-      return { ...p, ...updates };
-    }));
+  const receiveStock = async (productId, qty, newCostPrice) => {
+    const p = products.find(pr => pr.id === productId);
+    if (!p) return;
+    const updates = { stock: p.stock + qty };
+    let newCost = p.costPrice;
+    if (newCostPrice && newCostPrice > 0) {
+      const totalCost = (p.stock * p.costPrice) + (qty * newCostPrice);
+      const totalStock = p.stock + qty;
+      newCost = totalStock > 0 ? Math.round(totalCost / totalStock) : newCostPrice;
+      updates.costPrice = newCost;
+    }
+
+    const { error } = await supabase.from('products').update({
+      stock: updates.stock, cost_price: newCost, updated_at: new Date().toISOString()
+    }).eq('id', productId);
+    if (error) { alert('Орлого бүртгэх алдаа: ' + error.message); return; }
+
+    setProducts(prev => prev.map(pp => pp.id !== productId ? pp : { ...pp, ...updates }));
   };
 
   const deleteProduct = (productId) => {
@@ -217,28 +279,40 @@ export default function Dashboard() {
     if (!product) return;
     setConfirmingProductDelete({ id: productId, name: product.name, code: product.code });
   };
-  const confirmDeleteProduct = () => {
+  const confirmDeleteProduct = async () => {
     if (!confirmingProductDelete) return;
+    const { error } = await supabase.from('products').delete().eq('id', confirmingProductDelete.id);
+    if (error) { alert('Устгах алдаа: ' + error.message); return; }
     setProducts(prev => prev.filter(p => p.id !== confirmingProductDelete.id));
     setConfirmingProductDelete(null);
   };
 
   // Тооцоо хадгалах
-  const saveReconciliation = (data) => {
+  const saveReconciliation = async (data) => {
     const id = `rec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const archivedAt = new Date().toISOString();
     const newRec = {
-      id,
-      date: data.date,
-      label: data.label,
-      items: data.items, // [{productId, productName, productCode, qty, unitPrice, lineTotal}]
-      totalAmount: data.totalAmount,
-      notes: data.notes,
-      deductedStock: data.deductedStock,
-      archivedAt: new Date().toISOString()
+      id, date: data.date, label: data.label, items: data.items,
+      totalAmount: data.totalAmount, notes: data.notes,
+      deductedStock: data.deductedStock, archivedAt
     };
 
-    // Хэрэв "Нөөцөөс хасах" сонгосон бол
+    const { error } = await supabase.from('reconciliations').insert({
+      id, date: data.date, label: data.label, items: data.items,
+      total_amount: data.totalAmount, notes: data.notes,
+      deducted_stock: data.deductedStock
+    });
+    if (error) { alert('Тооцоо хадгалах алдаа: ' + error.message); return; }
+
+    // Нөөцөөс хасах
     if (data.deductedStock) {
+      for (const item of data.items) {
+        const p = products.find(pp => pp.id === item.productId);
+        if (p) {
+          const newStock = Math.max(0, p.stock - item.qty);
+          await supabase.from('products').update({ stock: newStock }).eq('id', p.id);
+        }
+      }
       setProducts(prev => prev.map(p => {
         const item = data.items.find(i => i.productId === p.id);
         if (!item) return p;
@@ -254,8 +328,10 @@ export default function Dashboard() {
     if (!rec) return;
     setConfirmingReconcileDelete(rec);
   };
-  const confirmDeleteReconciliation = () => {
+  const confirmDeleteReconciliation = async () => {
     if (!confirmingReconcileDelete) return;
+    const { error } = await supabase.from('reconciliations').delete().eq('id', confirmingReconcileDelete.id);
+    if (error) { alert('Устгах алдаа: ' + error.message); return; }
     setReconciliations(prev => prev.filter(r => r.id !== confirmingReconcileDelete.id));
     setConfirmingReconcileDelete(null);
   };
@@ -314,7 +390,19 @@ export default function Dashboard() {
     return aggregateValue(card);
   };
 
-  const updateCard = (deptId, cardId, updates) => {
+  const updateCard = async (deptId, cardId, updates) => {
+    const dbUpdates = {};
+    if ('label' in updates) dbUpdates.label = updates.label;
+    if ('unit' in updates) dbUpdates.unit = updates.unit;
+    if ('gradientId' in updates) dbUpdates.gradient_id = updates.gradientId;
+    if ('trend' in updates) dbUpdates.trend = updates.trend;
+    if ('target' in updates) dbUpdates.target = updates.target;
+    if ('dailyValues' in updates) dbUpdates.daily_values = updates.dailyValues;
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { error } = await supabase.from('cards').update(dbUpdates).eq('id', cardId);
+    if (error) { alert('Засварлах алдаа: ' + error.message); return; }
+
     setDepartments(prev => prev.map(d =>
       d.id !== deptId ? d : { ...d, cards: d.cards.map(c => c.id === cardId ? { ...c, ...updates } : c) }
     ));
@@ -322,7 +410,6 @@ export default function Dashboard() {
   const deleteCard = (deptId, cardId) => {
     const card = departments.find(d => d.id === deptId)?.cards.find(c => c.id === cardId);
     if (!card) return;
-    // Энэ картыг лавлаж буй тооцооны картууд
     const dependents = [];
     departments.forEach(d => d.cards.forEach(c => {
       if (c.formula && (c.formula.aId === cardId || c.formula.bId === cardId)) {
@@ -331,31 +418,59 @@ export default function Dashboard() {
     }));
     setConfirmingDelete({ deptId, cardId, label: card.label, dependents });
   };
-  const confirmDeleteCard = () => {
+  const confirmDeleteCard = async () => {
     if (!confirmingDelete) return;
     const { deptId, cardId } = confirmingDelete;
+    const { error } = await supabase.from('cards').delete().eq('id', cardId);
+    if (error) { alert('Устгах алдаа: ' + error.message); return; }
     setDepartments(prev => prev.map(d => d.id !== deptId ? d : { ...d, cards: d.cards.filter(c => c.id !== cardId) }));
     setConfirmingDelete(null);
   };
-  const addCard = (deptId, card) => {
+  const addCard = async (deptId, card) => {
     const id = `c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    // Хэрэв initialValue ирвэл өнөөдрийн өдрийн утга болгож хадгална
     const { initialValue, ...rest } = card;
     const finalCard = { id, ...rest };
     if (!finalCard.formula && !finalCard.dailyValues) {
       finalCard.dailyValues = initialValue ? { [todayStr()]: Number(initialValue) || 0 } : {};
     }
+
+    const { error } = await supabase.from('cards').insert({
+      id, dept_id: deptId, label: finalCard.label, unit: finalCard.unit,
+      gradient_id: finalCard.gradientId, trend: finalCard.trend, target: finalCard.target,
+      formula: finalCard.formula, daily_values: finalCard.dailyValues || {}
+    });
+    if (error) { alert('Карт нэмэх алдаа: ' + error.message); return; }
+
     setDepartments(prev => prev.map(d => d.id !== deptId ? d : { ...d, cards: [...d.cards, finalCard] }));
   };
 
   // Тухайн өдрийн утгуудыг хадгалах (олон карт нэгэн зэрэг)
-  const saveDailyEntries = (deptId, date, entries) => {
+  const saveDailyEntries = async (deptId, date, entries) => {
+    const dept = departments.find(d => d.id === deptId);
+    if (!dept) return;
+
+    // Supabase-д тус бүрчлэн UPDATE
+    for (const card of dept.cards) {
+      if (card.formula) continue;
+      if (!(card.id in entries)) continue;
+      const newDV = { ...(card.dailyValues || {}) };
+      const val = entries[card.id];
+      if (val === '' || val === null || val === undefined) {
+        delete newDV[date];
+      } else {
+        newDV[date] = Number(val) || 0;
+      }
+      await supabase.from('cards').update({
+        daily_values: newDV, updated_at: new Date().toISOString()
+      }).eq('id', card.id);
+    }
+
     setDepartments(prev => prev.map(d => {
       if (d.id !== deptId) return d;
       return {
         ...d,
         cards: d.cards.map(c => {
-          if (c.formula) return c; // томьёотой картыг алгасах
+          if (c.formula) return c;
           if (!(c.id in entries)) return c;
           const val = entries[c.id];
           const newDV = { ...(c.dailyValues || {}) };
@@ -531,14 +646,16 @@ export default function Dashboard() {
         <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl"></div>
         <div className="absolute -bottom-12 -left-4 h-20 w-20 rounded-full bg-white/10 blur-xl"></div>
 
-        <div className="absolute top-3 right-3 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-          <button onClick={() => setEditingCard({ deptId, cardId: card.id })} className="p-1.5 rounded-md bg-white/20 hover:bg-white/30 backdrop-blur" title="Засварлах">
-            <Edit2 className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => deleteCard(deptId, card.id)} className="p-1.5 rounded-md bg-white/20 hover:bg-white/30 backdrop-blur" title="Устгах">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {canEdit && (
+          <div className="absolute top-3 right-3 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
+            <button onClick={() => setEditingCard({ deptId, cardId: card.id })} className="p-1.5 rounded-md bg-white/20 hover:bg-white/30 backdrop-blur" title="Засварлах">
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => deleteCard(deptId, card.id)} className="p-1.5 rounded-md bg-white/20 hover:bg-white/30 backdrop-blur" title="Устгах">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {isFormula && (
           <div className="absolute top-3 left-3">
@@ -1361,6 +1478,21 @@ export default function Dashboard() {
 
   const styles = `.dash-input{width:100%;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0;font-size:14px;background:white;color:#334155}.dash-input:focus{outline:none;border-color:#f472b6;box-shadow:0 0 0 3px rgba(244,114,182,0.15)}`;
 
+  // Ачаалж байх үед loading дэлгэц
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center shadow-lg shadow-pink-500/30 animate-pulse">
+            <BarChart3 className="w-8 h-8 text-white" />
+          </div>
+          <div className="text-lg font-bold text-slate-800 mb-1">KPI Dashboard</div>
+          <div className="text-sm text-slate-500">Өгөгдөл ачаалж байна...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50" style={{ fontFamily: "'Manrope', 'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <style>{styles}</style>
@@ -1385,7 +1517,24 @@ export default function Dashboard() {
             <button className="p-2.5 rounded-xl bg-white/80 backdrop-blur hover:bg-white shadow-sm">
               <Settings className="w-4 h-4 text-slate-600" />
             </button>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-bold shadow-md">МД</div>
+            <button onClick={handleLogout}
+                    title="Гарах"
+                    className="px-3 py-2 rounded-xl bg-white/80 backdrop-blur hover:bg-rose-50 hover:text-rose-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Гарах</span>
+            </button>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 backdrop-blur shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                {(profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden sm:block">
+                <div className="text-xs font-bold text-slate-700 leading-tight">{profile?.full_name || profile?.email}</div>
+                <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                  <Shield className="w-2.5 h-2.5" />
+                  {profile?.role === 'admin' ? 'Админ' : profile?.role === 'manager' ? 'Менежер' : 'Үзэгч'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1525,20 +1674,22 @@ export default function Dashboard() {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800">{dept.name}</h2>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={() => setFormulaModalDept(dept.id)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-pink-200 text-pink-600 text-xs font-bold flex items-center gap-1.5 hover:bg-pink-50">
-                  <Calculator className="w-3.5 h-3.5" /> ТООЦОО НЭМЭХ
-                </button>
-                <button onClick={() => setCreatingDeptId(dept.id)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50">
-                  <Plus className="w-3.5 h-3.5" /> ШИНЭ КАРТ
-                </button>
-                <button onClick={() => setDailyEntryDeptId(dept.id)}
-                        className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30">
-                  <ClipboardList className="w-3.5 h-3.5" /> ТОО ОРУУЛАХ
-                </button>
-              </div>
+              {canEdit && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => setFormulaModalDept(dept.id)}
+                          className="px-3 py-1.5 rounded-lg bg-white border border-pink-200 text-pink-600 text-xs font-bold flex items-center gap-1.5 hover:bg-pink-50">
+                    <Calculator className="w-3.5 h-3.5" /> ТООЦОО НЭМЭХ
+                  </button>
+                  <button onClick={() => setCreatingDeptId(dept.id)}
+                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50">
+                    <Plus className="w-3.5 h-3.5" /> ШИНЭ КАРТ
+                  </button>
+                  <button onClick={() => setDailyEntryDeptId(dept.id)}
+                          className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30">
+                    <ClipboardList className="w-3.5 h-3.5" /> ТОО ОРУУЛАХ
+                  </button>
+                </div>
+              )}
             </div>
 
             {view === 'Карт' && (
@@ -1658,12 +1809,16 @@ export default function Dashboard() {
                     <Search className="w-4 h-4 text-slate-400" />
                     <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Бараа хайх..." className="text-xs bg-transparent focus:outline-none w-40 text-slate-700" />
                   </div>
-                  <button onClick={() => setShowReceiveStock(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 hover:shadow-lg">
-                    <PackagePlus className="w-3.5 h-3.5" /> БАРАА ОРЛОГДОХ
-                  </button>
-                  <button onClick={() => setShowAddProduct(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
-                    <Plus className="w-3.5 h-3.5" /> БАРАА НЭМЭХ
-                  </button>
+                  {canEdit && (
+                    <>
+                      <button onClick={() => setShowReceiveStock(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 hover:shadow-lg">
+                        <PackagePlus className="w-3.5 h-3.5" /> БАРАА ОРЛОГДОХ
+                      </button>
+                      <button onClick={() => setShowAddProduct(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
+                        <Plus className="w-3.5 h-3.5" /> БАРАА НЭМЭХ
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -1720,13 +1875,15 @@ export default function Dashboard() {
                             <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>{badge.label}</span>
                           </td>
                           <td className="px-5 py-3.5 text-right">
-                            <button
-                              onClick={() => deleteProduct(p.id)}
-                              className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                              title="Бараа устгах"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {canEdit && (
+                              <button
+                                onClick={() => deleteProduct(p.id)}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Бараа устгах"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -1830,10 +1987,12 @@ export default function Dashboard() {
                     <h3 className="text-lg font-bold text-slate-800">Архив</h3>
                     <p className="text-xs text-slate-500">{totalArchived} тооцоо хадгалагдсан</p>
                   </div>
-                  <button onClick={() => setShowReconcileModal(true)}
-                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
-                    <Plus className="w-3.5 h-3.5" /> ШИНЭ ТООЦОО ТУЛГАХ
-                  </button>
+                  {canEdit && (
+                    <button onClick={() => setShowReconcileModal(true)}
+                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
+                      <Plus className="w-3.5 h-3.5" /> ШИНЭ ТООЦОО ТУЛГАХ
+                    </button>
+                  )}
                 </div>
 
                 {reconciliations.length === 0 ? (
@@ -1857,10 +2016,12 @@ export default function Dashboard() {
                                   className="p-1.5 rounded-md bg-pink-50 hover:bg-pink-100 text-pink-600" title="Харах">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => deleteReconciliation(rec.id)}
-                                  className="p-1.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600" title="Устгах">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {canEdit && (
+                            <button onClick={() => deleteReconciliation(rec.id)}
+                                    className="p-1.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600" title="Устгах">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
 
                         <div onClick={() => setViewingReconcile(rec)} className="p-4 cursor-pointer">
