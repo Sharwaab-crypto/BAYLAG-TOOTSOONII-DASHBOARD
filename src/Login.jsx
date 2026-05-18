@@ -50,6 +50,22 @@ export default function Login() {
     }
   }
 
+  // Inline input styles to ensure proper padding-left for icons
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 12px 10px 40px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.6)',
+    background: 'rgba(255, 255, 255, 0.7)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    fontSize: '14px',
+    color: '#334155',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    boxSizing: 'border-box'
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
          style={{ fontFamily: "'Manrope', 'Plus Jakarta Sans', system-ui, sans-serif" }}>
@@ -90,9 +106,9 @@ export default function Login() {
               <div>
                 <label className="text-xs font-bold text-slate-600 mb-1.5 block">Овог нэр</label>
                 <div className="relative">
-                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" style={{ width: '16px', height: '16px', zIndex: 2 }} />
                   <input type="text" value={fullName} onChange={e => setFullName(e.target.value)}
-                         required placeholder="Бат-Эрдэнэ" className="dash-input pl-10" />
+                         required placeholder="Бат-Эрдэнэ" style={inputStyle} />
                 </div>
               </div>
             )}
@@ -100,18 +116,18 @@ export default function Login() {
             <div>
               <label className="text-xs font-bold text-slate-600 mb-1.5 block">И-мэйл</label>
               <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" style={{ width: '16px', height: '16px', zIndex: 2 }} />
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                       required placeholder="you@example.com" className="dash-input pl-10" />
+                       required placeholder="you@example.com" style={inputStyle} />
               </div>
             </div>
 
             <div>
               <label className="text-xs font-bold text-slate-600 mb-1.5 block">Нууц үг</label>
               <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" style={{ width: '16px', height: '16px', zIndex: 2 }} />
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                       required minLength={6} placeholder="••••••" className="dash-input pl-10" />
+                       required minLength={6} placeholder="••••••" style={inputStyle} />
               </div>
               {mode === 'signup' && (
                 <div className="text-[10px] text-slate-500 mt-1">6-аас доошгүй тэмдэгт</div>
