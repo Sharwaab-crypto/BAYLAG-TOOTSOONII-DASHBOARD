@@ -62,16 +62,16 @@ function Field({ label, children, hint }) {
 
 function Modal({ onClose, title, icon: Icon, children, maxWidth = 'max-w-md' }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(88, 28, 135, 0.25)', backdropFilter: 'blur(8px)' }} onClick={onClose}>
+      <div className={`glass-strong rounded-3xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`} style={{ background: 'rgba(255, 255, 255, 0.92)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-white/40 sticky top-0 z-10" style={{ background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(20px)' }}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-md shadow-purple-500/30">
               <Icon className="w-4 h-4 text-white" />
             </div>
             <h3 className="font-bold text-slate-800">{title}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-500" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/60"><X className="w-4 h-4 text-slate-500" /></button>
         </div>
         <div className="p-5">{children}</div>
       </div>
@@ -785,7 +785,7 @@ export default function Dashboard({ session, profile }) {
               {['+', '-', '*', '/'].map(o => (
                 <button key={o} onClick={() => setOp(o)}
                         className={`py-2.5 rounded-lg text-lg font-bold transition-all ${op === o
-                          ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md'
+                          ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md'
                           : 'bg-white border border-slate-200 text-slate-600 hover:border-pink-300'}`}>
                   {o === '*' ? '×' : o === '/' ? '÷' : o}
                 </button>
@@ -818,7 +818,7 @@ export default function Dashboard({ session, profile }) {
 
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
-            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
+            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
               <Save className="w-4 h-4" /> Үүсгэх
             </button>
           </div>
@@ -870,7 +870,7 @@ export default function Dashboard({ session, profile }) {
           </Field>
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
-            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-sm font-bold shadow-md flex items-center justify-center gap-1.5">
+            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md flex items-center justify-center gap-1.5">
               <Save className="w-4 h-4" /> Хадгалах
             </button>
           </div>
@@ -945,7 +945,7 @@ export default function Dashboard({ session, profile }) {
           )}
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
-            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-sm font-bold shadow-md flex items-center justify-center gap-1.5">
+            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md flex items-center justify-center gap-1.5">
               <Save className="w-4 h-4" /> Хадгалах
             </button>
           </div>
@@ -1022,7 +1022,7 @@ export default function Dashboard({ session, profile }) {
 
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
-            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
+            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
               <Save className="w-4 h-4" /> Хадгалах
             </button>
           </div>
@@ -1106,11 +1106,11 @@ export default function Dashboard({ session, profile }) {
           <div className="bg-slate-50 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 border border-slate-200">
             <div className="flex gap-2">
               <button onClick={() => setUseCostPrice(false)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!useCostPrice ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!useCostPrice ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600'}`}>
                 Зарах үнээр
               </button>
               <button onClick={() => setUseCostPrice(true)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${useCostPrice ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${useCostPrice ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600'}`}>
                 Өртөг үнээр
               </button>
             </div>
@@ -1203,7 +1203,7 @@ export default function Dashboard({ session, profile }) {
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
             <button onClick={handleSave} disabled={items.length === 0}
-                    className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
               <CheckCircle2 className="w-4 h-4" /> Тулгаж архивлах
             </button>
           </div>
@@ -1226,7 +1226,7 @@ export default function Dashboard({ session, profile }) {
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Барааны төрөл</div>
               <div className="text-sm font-bold text-slate-800">{rec.items.length}</div>
             </div>
-            <div className="bg-gradient-to-br from-pink-500 to-orange-500 text-white rounded-xl p-3">
+            <div className="bg-gradient-to-br from-violet-500 to-pink-500 text-white rounded-xl p-3">
               <div className="text-[10px] font-bold opacity-90 uppercase tracking-wider mb-1">Нийт дүн</div>
               <div className="text-sm font-bold">{fmt(rec.totalAmount)}₮</div>
             </div>
@@ -1529,7 +1529,7 @@ export default function Dashboard({ session, profile }) {
 
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
-            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-sm font-bold shadow-md flex items-center justify-center gap-1.5">
+            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md flex items-center justify-center gap-1.5">
               <Save className="w-4 h-4" /> Бүртгэх
             </button>
           </div>
@@ -1643,27 +1643,42 @@ export default function Dashboard({ session, profile }) {
   // Ачаалж байх үед loading дэлгэц
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center shadow-lg shadow-pink-500/30 animate-pulse">
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="blob-container">
+          <div className="blob blob-1"></div>
+          <div className="blob blob-2"></div>
+          <div className="blob blob-3"></div>
+          <div className="blob blob-4"></div>
+        </div>
+        <div className="text-center glass-main">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-xl shadow-purple-500/30 animate-pulse">
             <BarChart3 className="w-8 h-8 text-white" />
           </div>
           <div className="text-lg font-bold text-slate-800 mb-1">KPI Dashboard</div>
-          <div className="text-sm text-slate-500">Өгөгдөл ачаалж байна...</div>
+          <div className="text-sm text-slate-600">Өгөгдөл ачаалж байна...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50" style={{ fontFamily: "'Manrope', 'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div className="min-h-screen relative" style={{ fontFamily: "'Manrope', 'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <style>{styles}</style>
-      <div className="max-w-[1400px] mx-auto p-4 md:p-6 space-y-4">
+
+      {/* Анимэйшнтэй бөмбөрцгүүд */}
+      <div className="blob-container">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+        <div className="blob blob-3"></div>
+        <div className="blob blob-4"></div>
+      </div>
+
+      <div className="glass-main max-w-[1400px] mx-auto p-4 md:p-6 space-y-4">
 
         {/* Дээд самбар */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center shadow-lg shadow-pink-500/30">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -1675,18 +1690,18 @@ export default function Dashboard({ session, profile }) {
             {isAdmin && (
               <button onClick={() => setShowUserManagement(true)}
                       title="Хэрэглэгч удирдах"
-                      className="px-3 py-2 rounded-xl bg-white/80 backdrop-blur hover:bg-pink-50 hover:text-pink-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
+                      className="px-3 py-2 rounded-xl glass hover:bg-pink-50 hover:text-pink-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Хэрэглэгчид</span>
               </button>
             )}
             <button onClick={handleLogout}
                     title="Гарах"
-                    className="px-3 py-2 rounded-xl bg-white/80 backdrop-blur hover:bg-rose-50 hover:text-rose-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
+                    className="px-3 py-2 rounded-xl glass hover:bg-rose-50 hover:text-rose-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Гарах</span>
             </button>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 backdrop-blur shadow-sm">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl glass shadow-sm">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-xs font-bold shadow-md">
                 {(profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase()}
               </div>
@@ -1704,19 +1719,19 @@ export default function Dashboard({ session, profile }) {
         {/* Таб солих */}
         <div className="flex gap-2 bg-white/60 backdrop-blur p-1 rounded-2xl shadow-sm w-fit flex-wrap">
           <button onClick={() => setActiveTab('kpi')}
-                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'kpi' ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md shadow-pink-500/30' : 'text-slate-600'}`}>
+                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'kpi' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md shadow-purple-500/30' : 'text-slate-600'}`}>
             KPI Хяналт
           </button>
           <button onClick={() => setActiveTab('inventory')}
-                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md shadow-pink-500/30' : 'text-slate-600'}`}>
+                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md shadow-purple-500/30' : 'text-slate-600'}`}>
             Бараа нөөц
           </button>
           <button onClick={() => setActiveTab('reconcile')}
-                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'reconcile' ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md shadow-pink-500/30' : 'text-slate-600'}`}>
+                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'reconcile' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md shadow-purple-500/30' : 'text-slate-600'}`}>
             <Receipt className="w-4 h-4" /> Тооцоо
           </button>
           <button onClick={() => setActiveTab('report')}
-                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'report' ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-md shadow-pink-500/30' : 'text-slate-600'}`}>
+                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'report' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md shadow-purple-500/30' : 'text-slate-600'}`}>
             <FileText className="w-4 h-4" /> Нэгдсэн тайлан
           </button>
         </div>
@@ -1727,7 +1742,7 @@ export default function Dashboard({ session, profile }) {
             <div className="flex flex-wrap gap-2">
               {periods.map(p => (
                 <button key={p} onClick={() => setPeriod(p)}
-                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${period === p ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white border-transparent shadow-md shadow-pink-500/30' : 'bg-white text-slate-600 border-slate-200 hover:border-pink-300'}`}>
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${period === p ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white border-transparent shadow-md shadow-purple-500/30' : 'bg-white text-slate-600 border-slate-200 hover:border-pink-300'}`}>
                   {p}
                 </button>
               ))}
@@ -1845,7 +1860,7 @@ export default function Dashboard({ session, profile }) {
                     <Plus className="w-3.5 h-3.5" /> ШИНЭ КАРТ
                   </button>
                   <button onClick={() => setDailyEntryDeptId(dept.id)}
-                          className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30">
+                          className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-500/30">
                     <ClipboardList className="w-3.5 h-3.5" /> ТОО ОРУУЛАХ
                   </button>
                 </div>
@@ -1898,7 +1913,7 @@ export default function Dashboard({ session, profile }) {
 
             {/* Графикууд */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 bg-white/80 backdrop-blur rounded-2xl p-5 shadow-sm border border-white">
+              <div className="lg:col-span-2 glass rounded-2xl p-5 shadow-sm border border-white">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Барааны хөдөлгөөн</h3>
@@ -1929,7 +1944,7 @@ export default function Dashboard({ session, profile }) {
                 </ResponsiveContainer>
               </div>
 
-              <div className="bg-white/80 backdrop-blur rounded-2xl p-5 shadow-sm border border-white">
+              <div className="glass rounded-2xl p-5 shadow-sm border border-white">
                 <h3 className="text-lg font-bold text-slate-800 mb-1">Ангилал</h3>
                 <p className="text-xs text-slate-500 mb-3">Барааны төрлийн хуваарилалт</p>
                 {categoryData.length === 0 ? (
@@ -1958,7 +1973,7 @@ export default function Dashboard({ session, profile }) {
             </div>
 
             {/* Барааны жагсаалт */}
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white overflow-hidden">
+            <div className="glass rounded-2xl shadow-sm border border-white overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Барааны жагсаалт</h3>
@@ -1974,7 +1989,7 @@ export default function Dashboard({ session, profile }) {
                       <button onClick={() => setShowReceiveStock(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 hover:shadow-lg">
                         <PackagePlus className="w-3.5 h-3.5" /> БАРАА ОРЛОГДОХ
                       </button>
-                      <button onClick={() => setShowAddProduct(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
+                      <button onClick={() => setShowAddProduct(true)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-500/30 hover:shadow-lg">
                         <Plus className="w-3.5 h-3.5" /> БАРАА НЭМЭХ
                       </button>
                     </>
@@ -2141,7 +2156,7 @@ export default function Dashboard({ session, profile }) {
               </div>
 
               {/* Архивласан тооцоонуудын жагсаалт */}
-              <div className="bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white overflow-hidden">
+              <div className="glass rounded-2xl shadow-sm border border-white overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Архив</h3>
@@ -2149,7 +2164,7 @@ export default function Dashboard({ session, profile }) {
                   </div>
                   {canEdit && (
                     <button onClick={() => setShowReconcileModal(true)}
-                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/30 hover:shadow-lg">
+                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-500/30 hover:shadow-lg">
                       <Plus className="w-3.5 h-3.5" /> ШИНЭ ТООЦОО ТУЛГАХ
                     </button>
                   )}
@@ -2163,7 +2178,7 @@ export default function Dashboard({ session, profile }) {
                     <div className="text-sm font-bold text-slate-700 mb-1">Архив хоосон байна</div>
                     <div className="text-xs text-slate-500 mb-4">Эхний тооцоог бүртгэхийн тулд дээрх товчийг дарна уу</div>
                     <button onClick={() => setShowReconcileModal(true)}
-                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-md">
+                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-md">
                       <Plus className="w-3.5 h-3.5" /> Тооцоо тулгах
                     </button>
                   </div>
@@ -2200,7 +2215,7 @@ export default function Dashboard({ session, profile }) {
                           <div className="flex items-end justify-between">
                             <div>
                               <div className="text-[10px] text-slate-400 uppercase tracking-wider">Нийт</div>
-                              <div className="text-lg font-bold bg-gradient-to-r from-pink-500 to-orange-500 bg-clip-text text-transparent">
+                              <div className="text-lg font-bold bg-gradient-to-r from-violet-500 to-pink-500 bg-clip-text text-transparent">
                                 {fmt(rec.totalAmount)}₮
                               </div>
                             </div>
@@ -2303,10 +2318,10 @@ export default function Dashboard({ session, profile }) {
               {departments.map(dept => {
                 const deptTotal = dept.cards.reduce((s, c) => s + computeValue(c), 0);
                 return (
-                  <div key={dept.id} className="bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white overflow-hidden">
+                  <div key={dept.id} className="glass rounded-2xl shadow-sm border border-white overflow-hidden">
                     <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center shadow-md">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-md">
                           {dept.icon === 'users' ? <Users className="w-5 h-5 text-white" /> : <DollarSign className="w-5 h-5 text-white" />}
                         </div>
                         <div>
