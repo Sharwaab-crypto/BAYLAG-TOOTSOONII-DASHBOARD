@@ -1285,6 +1285,149 @@ export default function Dashboard({ session, profile }) {
     );
   };
 
+  // ====== ШИНЭ ХЭРЭГЛЭГЧ ҮҮСГЭХ ФОРМ ======
+  const CreateUserForm = ({ onCreated }) => {
+    const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'viewer' });
+    const [creating, setCreating] = useState(false);
+    const [message, setMessage] = useState(null);
+
+    const generatePassword = () => {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      let pwd = '';
+      for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+      setForm({ ...form, password: pwd });
+    };
+
+    const handleCreate = async (e) => {
+      e.preventDefault();
+      if (!form.email.trim() || !form.password.trim() || !form.fullName.trim()) {
+        setMessage({ type: 'error', text: 'Бүх талбарыг бөглөнө үү' });
+        return;
+      }
+      if (form.password.length < 6) {
+        setMessage({ type: 'error', text: 'Нууц үг 6-аас доошгүй тэмдэгттэй байх ёстой' });
+        return;
+      }
+
+      setCreating(true);
+      setMessage(null);
+
+      try {
+        // Одоогийн session-ыг хадгалах (signup нь session-ыг солих учир)
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+        // Шинэ хэрэглэгч үүсгэх (signUp ашиглах)
+        const { data, error } = await supabase.auth.signUp({
+          email: form.email.trim(),
+          password: form.password,
+          options: { data: { full_name: form.fullName.trim() } }
+        });
+
+        if (error) throw error;
+
+        // Эрхийг тохируулах (trigger viewer болгож үүсгэсэн, бид солих)
+        if (data.user && form.role !== 'viewer') {
+          // Хэдэн миллисекунд хүлээж trigger дуусахыг хүлээх
+          await new Promise(r => setTimeout(r, 500));
+          await supabase.from('user_profiles').update({ role: form.role }).eq('id', data.user.id);
+        }
+
+        // Одоогийн админ session-ыг сэргээх (учир нь signUp шинэ session үүсгэсэн)
+        if (currentSession) {
+          await supabase.auth.setSession({
+            access_token: currentSession.access_token,
+            refresh_token: currentSession.refresh_token
+          });
+        }
+
+        setMessage({
+          type: 'success',
+          text: `Амжилттай! ${form.email} нэрээр хэрэглэгч үүслээ. Нууц үг: ${form.password}`,
+          credentials: { email: form.email, password: form.password }
+        });
+        setForm({ fullName: '', email: '', password: '', role: 'viewer' });
+        if (onCreated) onCreated();
+      } catch (err) {
+        const msg = err.message || '';
+        if (msg.includes('already registered')) {
+          setMessage({ type: 'error', text: 'Энэ и-мэйл аль хэдийн бүртгэгдсэн' });
+        } else if (msg.includes('Signups not allowed')) {
+          setMessage({ type: 'error', text: 'Supabase-д signup унтраатай. Authentication → Providers → Email → "Enable email signup" асаа.' });
+        } else {
+          setMessage({ type: 'error', text: msg });
+        }
+      } finally {
+        setCreating(false);
+      }
+    };
+
+    return (
+      <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3">
+        <div className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1.5">
+          <UserPlus className="w-3.5 h-3.5" /> Шинэ хэрэглэгч үүсгэх
+        </div>
+        <form onSubmit={handleCreate} className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <input type="text" required value={form.fullName}
+                   onChange={e => setForm({ ...form, fullName: e.target.value })}
+                   placeholder="Овог нэр" className="dash-input text-xs" />
+            <input type="email" required value={form.email}
+                   onChange={e => setForm({ ...form, email: e.target.value })}
+                   placeholder="ажилтан@example.com" className="dash-input text-xs" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="relative">
+              <input type="text" required value={form.password}
+                     onChange={e => setForm({ ...form, password: e.target.value })}
+                     placeholder="Нууц үг (6+ тэмдэгт)" className="dash-input text-xs pr-16" />
+              <button type="button" onClick={generatePassword}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 text-[10px] font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100">
+                Үүсгэх
+              </button>
+            </div>
+            <select value={form.role}
+                    onChange={e => setForm({ ...form, role: e.target.value })}
+                    className="dash-input text-xs cursor-pointer">
+              <option value="viewer">Үзэгч (зөвхөн харах)</option>
+              <option value="manager">Менежер (засах эрх)</option>
+              <option value="admin">Админ (бүх эрх)</option>
+            </select>
+          </div>
+
+          {message && (
+            <div className={`rounded-lg p-2.5 text-[11px] ${
+              message.type === 'success'
+                ? 'bg-emerald-100 border border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border border-rose-200 text-rose-700'
+            }`}>
+              {message.type === 'success' ? (
+                <div>
+                  <div className="font-bold mb-1">✅ Амжилттай үүслээ!</div>
+                  <div className="bg-white rounded p-2 mt-1 font-mono text-[10px] space-y-0.5">
+                    <div>📧 И-мэйл: <span className="font-bold">{message.credentials.email}</span></div>
+                    <div>🔑 Нууц үг: <span className="font-bold">{message.credentials.password}</span></div>
+                  </div>
+                  <div className="mt-1.5 text-[10px]">Энэ мэдээллийг ажилтанд илгээгээрэй.</div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <div>{message.text}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button type="submit" disabled={creating}
+                  className="w-full py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-1.5">
+            <UserPlus className="w-3.5 h-3.5" />
+            {creating ? 'Үүсгэж байна...' : 'Хэрэглэгч үүсгэх'}
+          </button>
+        </form>
+      </div>
+    );
+  };
+
   // ====== ХЭРЭГЛЭГЧИЙН УДИРДЛАГЫН МОДАЛ ======
   const UserManagementModal = ({ onClose }) => {
     const [users, setUsers] = useState([]);
@@ -1347,18 +1490,8 @@ export default function Dashboard({ session, profile }) {
             </div>
           </div>
 
-          {/* Шинэ хэрэглэгч урих */}
-          <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3">
-            <div className="text-xs font-bold text-emerald-700 mb-1.5 flex items-center gap-1.5">
-              <UserPlus className="w-3.5 h-3.5" /> Шинэ хэрэглэгч нэмэх
-            </div>
-            <div className="text-[11px] text-slate-600 mb-2">
-              Шинэ ажилтанд app-ын линкийг илгээгээрэй: <span className="font-mono text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">{window.location.origin}</span>
-            </div>
-            <div className="text-[11px] text-slate-500">
-              Тэр <span className="font-bold">"Бүртгүүлэх"</span> дарж өөрийн и-мэйл, нууц үгээр бүртгүүлнэ. Бүртгүүлсний дараа эндээс эрхийг нь тохируулна (анхдагч нь <span className="font-bold">Үзэгч</span>).
-            </div>
-          </div>
+          {/* Шинэ хэрэглэгч үүсгэх форм */}
+          <CreateUserForm onCreated={loadUsers} />
 
           {/* Хэрэглэгчдийн жагсаалт */}
           <div>
