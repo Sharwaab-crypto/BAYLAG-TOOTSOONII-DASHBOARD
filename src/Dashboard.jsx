@@ -1044,6 +1044,48 @@ export default function Dashboard({ session, profile }) {
       return count;
     }, [values, dates, editableCards]);
 
+    // Бүх өдөрт ижил утга оруулах modal
+    const [bulkFill, setBulkFill] = useState({ open: false, cardId: '', value: '', mode: 'equal' });
+
+    const openBulkFill = () => {
+      setBulkFill({
+        open: true,
+        cardId: editableCards[0]?.id || '',
+        value: '',
+        mode: 'equal'
+      });
+    };
+
+    const applyBulkFill = () => {
+      const { cardId, value, mode } = bulkFill;
+      if (!cardId || value === '') {
+        alert('Карт болон утга сонгоно уу');
+        return;
+      }
+      const num = Number(value);
+      if (isNaN(num)) {
+        alert('Тоо буруу байна');
+        return;
+      }
+
+      const newCardValues = { ...(values[cardId] || {}) };
+      dates.forEach(d => {
+        if (mode === 'equal') {
+          newCardValues[d] = String(num);
+        } else if (mode === 'random') {
+          // ±20% random хэлбэлзэл
+          const factor = 0.8 + Math.random() * 0.4;
+          newCardValues[d] = String(Math.round(num * factor));
+        } else if (mode === 'distribute') {
+          // num бол нийт дүн, өдрүүдэд хуваана
+          newCardValues[d] = String(Math.round(num / dates.length));
+        }
+      });
+
+      setValues(prev => ({ ...prev, [cardId]: newCardValues }));
+      setBulkFill({ ...bulkFill, open: false });
+    };
+
     // Огнооны товч толгой бичих
     const formatDateHeader = (dateStr) => {
       const d = new Date(dateStr);
@@ -1080,6 +1122,13 @@ export default function Dashboard({ session, profile }) {
                        onChange={e => setRange({ ...range, end: e.target.value })}
                        className="dash-input text-xs py-1.5 w-36" />
               </div>
+            )}
+            <div className="flex-1"></div>
+            {editableCards.length > 0 && (
+              <button onClick={openBulkFill}
+                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-md hover:shadow-lg flex items-center gap-1.5">
+                <Sigma className="w-3.5 h-3.5" /> Дундаж утга оруулах
+              </button>
             )}
           </div>
 
@@ -1166,6 +1215,104 @@ export default function Dashboard({ session, profile }) {
               <Save className="w-4 h-4" /> {saving ? 'Хадгалж байна...' : 'Бүгдийг хадгалах'}
             </button>
           </div>
+
+          {/* Дундаж утга оруулах sub-modal */}
+          {bulkFill.open && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+                 style={{ background: 'rgba(88, 28, 135, 0.4)', backdropFilter: 'blur(8px)' }}
+                 onClick={() => setBulkFill({ ...bulkFill, open: false })}>
+              <div className="glass-strong rounded-2xl w-full max-w-md p-5"
+                   style={{ background: 'rgba(255, 255, 255, 0.95)' }}
+                   onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
+                      <Sigma className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-bold text-slate-800">Дундаж утга оруулах</h3>
+                  </div>
+                  <button onClick={() => setBulkFill({ ...bulkFill, open: false })}
+                          className="p-1.5 rounded-lg hover:bg-slate-100">
+                    <X className="w-4 h-4 text-slate-500" />
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-slate-600 bg-emerald-50/60 border border-emerald-100 rounded-lg p-2 mb-4">
+                  💡 Сонгосон карт + сонгосон хугацааны <span className="font-bold">бүх өдөрт</span> утга оруулна.
+                </div>
+
+                <div className="space-y-3">
+                  <Field label="Карт сонгох">
+                    <select value={bulkFill.cardId}
+                            onChange={e => setBulkFill({ ...bulkFill, cardId: e.target.value })}
+                            className="dash-input">
+                      {editableCards.map(c => (
+                        <option key={c.id} value={c.id}>{c.label} {c.unit ? `(${c.unit})` : ''}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Утга">
+                    <input type="number" value={bulkFill.value}
+                           onChange={e => setBulkFill({ ...bulkFill, value: e.target.value })}
+                           placeholder="Жишээ: 50"
+                           autoFocus
+                           className="dash-input" />
+                  </Field>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">Хуваарилах хэлбэр</label>
+                    <div className="space-y-1.5">
+                      <label className="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 hover:border-emerald-300 cursor-pointer transition-colors">
+                        <input type="radio" checked={bulkFill.mode === 'equal'}
+                               onChange={() => setBulkFill({ ...bulkFill, mode: 'equal' })}
+                               className="mt-0.5" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-800">Бүх өдөрт яг адил</div>
+                          <div className="text-[10px] text-slate-500">Жишээ: 50 → бүгдэд 50</div>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 hover:border-emerald-300 cursor-pointer transition-colors">
+                        <input type="radio" checked={bulkFill.mode === 'random'}
+                               onChange={() => setBulkFill({ ...bulkFill, mode: 'random' })}
+                               className="mt-0.5" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-800">Санамсаргүй хэлбэлзэл (±20%)</div>
+                          <div className="text-[10px] text-slate-500">Жишээ: 50 → 40-60 хооронд санамсаргүй</div>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 hover:border-emerald-300 cursor-pointer transition-colors">
+                        <input type="radio" checked={bulkFill.mode === 'distribute'}
+                               onChange={() => setBulkFill({ ...bulkFill, mode: 'distribute' })}
+                               className="mt-0.5" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-800">Нийт дүнг хуваарилах</div>
+                          <div className="text-[10px] text-slate-500">Жишээ: 350 / {dates.length} өдөр = {dates.length > 0 ? Math.round(350 / dates.length) : 0} өдөр бүрд</div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50/60 border border-amber-200 rounded-lg p-2 text-[10px] text-amber-800">
+                    ⚠️ Энэ үйлдэл нь сонгосон картын одоогийн утгуудыг <span className="font-bold">давхарлан бичнэ</span>. Хадгалахгүйгээр буцаах боломжтой (Цуцлах товч).
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => setBulkFill({ ...bulkFill, open: false })}
+                          className="flex-1 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                    Цуцлах
+                  </button>
+                  <button onClick={applyBulkFill}
+                          className="flex-1 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
+                    <Sigma className="w-3.5 h-3.5" /> Бүгдэд оруулах ({dates.length} өдөр)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     );
