@@ -959,71 +959,211 @@ export default function Dashboard({ session, profile }) {
     const dept = departments.find(d => d.id === deptId);
     const editableCards = dept?.cards.filter(c => !c.formula) || [];
 
-    const [date, setDate] = useState(todayStr());
-    const buildValues = (newDate) => {
+    // Огнооны хүрээ (default = сүүлийн 7 хоног)
+    const buildRange = (mode) => {
+      const today = new Date();
+      const start = new Date(today);
+      if (mode === '7') start.setDate(today.getDate() - 6);
+      else if (mode === '14') start.setDate(today.getDate() - 13);
+      else if (mode === '30') start.setDate(today.getDate() - 29);
+      return { start: dateKey(start), end: dateKey(today) };
+    };
+
+    const [rangeMode, setRangeMode] = useState('7');
+    const [range, setRange] = useState(buildRange('7'));
+
+    // Огноонуудын жагсаалт (sorted)
+    const dates = useMemo(() => {
+      const result = [];
+      if (!range.start || !range.end) return result;
+      const start = new Date(range.start);
+      const end = new Date(range.end);
+      const cur = new Date(start);
+      while (cur <= end) {
+        result.push(dateKey(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return result;
+    }, [range]);
+
+    // Утга байх state: { [cardId]: { [date]: value } }
+    const buildValues = () => {
       const v = {};
-      editableCards.forEach(c => { v[c.id] = c.dailyValues?.[newDate] ?? ''; });
+      editableCards.forEach(c => {
+        v[c.id] = {};
+        dates.forEach(d => {
+          v[c.id][d] = c.dailyValues?.[d] ?? '';
+        });
+      });
       return v;
     };
-    const [values, setValues] = useState(() => buildValues(date));
+    const [values, setValues] = useState(() => buildValues());
 
-    const handleDateChange = (newDate) => {
-      setDate(newDate);
-      setValues(buildValues(newDate));
+    // Range/cards өөрчлөгдвөл values rebuild хийх
+    useEffect(() => { setValues(buildValues()); }, [range.start, range.end, deptId]);
+
+    const handleChangeMode = (mode) => {
+      setRangeMode(mode);
+      if (mode !== 'custom') setRange(buildRange(mode));
     };
 
-    const handleSave = () => {
-      saveDailyEntries(deptId, date, values);
+    const handleCellChange = (cardId, date, val) => {
+      setValues(prev => ({
+        ...prev,
+        [cardId]: { ...(prev[cardId] || {}), [date]: val }
+      }));
+    };
+
+    const [saving, setSaving] = useState(false);
+    const handleSave = async () => {
+      setSaving(true);
+      // Огноо тус бүрд saveDailyEntries дуудах
+      for (const date of dates) {
+        const entries = {};
+        editableCards.forEach(c => {
+          const v = values[c.id]?.[date];
+          if (v !== undefined) entries[c.id] = v;
+        });
+        if (Object.keys(entries).length > 0) {
+          await saveDailyEntries(deptId, date, entries);
+        }
+      }
+      setSaving(false);
       onClose();
     };
 
-    const totalEntered = Object.values(values).filter(v => v !== '' && v !== null && Number(v) !== 0).length;
+    // Нийт оруулсан тоо
+    const totalEntered = useMemo(() => {
+      let count = 0;
+      editableCards.forEach(c => {
+        dates.forEach(d => {
+          const v = values[c.id]?.[d];
+          if (v !== '' && v !== null && v !== undefined) count++;
+        });
+      });
+      return count;
+    }, [values, dates, editableCards]);
+
+    // Огнооны товч толгой бичих
+    const formatDateHeader = (dateStr) => {
+      const d = new Date(dateStr);
+      const weekDays = ['Ня', 'Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям'];
+      const m = pad2(d.getMonth() + 1);
+      const day = pad2(d.getDate());
+      return { day: `${m}/${day}`, week: weekDays[d.getDay()], isToday: dateStr === todayStr() };
+    };
 
     return (
-      <Modal onClose={onClose} title={`Өдрийн тоо оруулах · ${dept?.name}`} icon={ClipboardList} maxWidth="max-w-lg">
-        <div className="space-y-4">
-          <div className="bg-gradient-to-r from-pink-50 to-orange-50 rounded-xl p-4 border border-pink-100">
-            <Field label="Огноо сонгох">
-              <input type="date" value={date} onChange={e => handleDateChange(e.target.value)} className="dash-input" max={todayStr()} />
-            </Field>
-            <div className="text-[10px] text-slate-500 mt-2">
-              Сонгосон огнооны өдөр оруулсан утга байвал автоматаар ачаалагдана. Хоосон үлдээвэл тухайн өдрийн утга устана.
+      <Modal onClose={onClose} title={`Олон өдрийн тоо оруулах · ${dept?.name}`} icon={ClipboardList} maxWidth="max-w-5xl">
+        <div className="space-y-3">
+          {/* Хугацаа сонгох */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-600">Хугацаа:</span>
+            {[
+              { id: '7', label: '7 хоног' },
+              { id: '14', label: '14 хоног' },
+              { id: '30', label: '30 хоног' },
+              { id: 'custom', label: 'Тусгай' }
+            ].map(opt => (
+              <button key={opt.id} onClick={() => handleChangeMode(opt.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${rangeMode === opt.id ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md' : 'bg-white/60 text-slate-600 hover:bg-white border border-slate-200'}`}>
+                {opt.label}
+              </button>
+            ))}
+            {rangeMode === 'custom' && (
+              <div className="flex items-center gap-2 ml-2">
+                <input type="date" value={range.start} max={todayStr()}
+                       onChange={e => setRange({ ...range, start: e.target.value })}
+                       className="dash-input text-xs py-1.5 w-36" />
+                <span className="text-xs text-slate-500">→</span>
+                <input type="date" value={range.end} max={todayStr()}
+                       onChange={e => setRange({ ...range, end: e.target.value })}
+                       className="dash-input text-xs py-1.5 w-36" />
+              </div>
+            )}
+          </div>
+
+          <div className="text-[10px] text-slate-500 bg-blue-50/60 border border-blue-100 rounded-lg p-2">
+            💡 <span className="font-bold">Зөвлөгөө:</span> Tab товчоор дараагийн нүд рүү шилжинэ. Хоосон нүд хадгалагдсан утгыг өөрчлөхгүй. Утга устгахын тулд тэр нүдийг "0" хийнэ.
+          </div>
+
+          {/* Хүснэгт */}
+          {editableCards.length === 0 ? (
+            <div className="text-center py-8 text-sm text-slate-400 glass rounded-xl">Утга оруулах карт байхгүй</div>
+          ) : (
+            <div className="overflow-auto border border-slate-200 rounded-xl bg-white max-h-[55vh]">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-violet-50 to-pink-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-gradient-to-r from-violet-50 to-pink-50 z-20" style={{ minWidth: '180px' }}>
+                      Карт
+                    </th>
+                    {dates.map(d => {
+                      const h = formatDateHeader(d);
+                      return (
+                        <th key={d} className={`px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider ${h.isToday ? 'bg-purple-100 text-purple-700' : 'text-slate-600'}`} style={{ minWidth: '80px' }}>
+                          <div>{h.day}</div>
+                          <div className="text-[9px] font-normal opacity-70">{h.week}</div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {editableCards.map(card => {
+                    const grad = gradById(card.gradientId);
+                    return (
+                      <tr key={card.id} className="hover:bg-slate-50/50">
+                        <td className="px-3 py-2 sticky left-0 bg-white z-10 hover:bg-slate-50/50">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1 self-stretch rounded-full bg-gradient-to-b ${grad.cls}`} style={{ height: '28px' }}></div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-700 truncate" style={{ maxWidth: '150px' }} title={card.label}>{card.label}</div>
+                              <div className="text-[9px] text-slate-400">{card.unit || '—'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        {dates.map(d => {
+                          const h = formatDateHeader(d);
+                          return (
+                            <td key={d} className={`px-1 py-1 ${h.isToday ? 'bg-purple-50/40' : ''}`}>
+                              <input
+                                type="number"
+                                value={values[card.id]?.[d] ?? ''}
+                                onChange={e => handleCellChange(card.id, d, e.target.value)}
+                                placeholder="—"
+                                className="w-full px-1.5 py-1 text-xs text-center rounded border border-transparent hover:border-slate-200 focus:border-pink-400 focus:outline-none focus:ring-1 focus:ring-pink-200 bg-transparent focus:bg-white"
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="text-slate-500">
+              <span className="font-bold text-slate-700">{editableCards.length}</span> карт ×{' '}
+              <span className="font-bold text-slate-700">{dates.length}</span> өдөр ={' '}
+              <span className="font-bold text-purple-600">{totalEntered}</span> оруулсан
+            </div>
+            <div className="text-slate-400 font-mono text-[10px]">
+              {range.start} → {range.end}
             </div>
           </div>
 
-          <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
-            {editableCards.length === 0 ? (
-              <div className="text-center py-6 text-sm text-slate-400">Утга оруулах карт байхгүй байна</div>
-            ) : editableCards.map(card => {
-              const grad = gradById(card.gradientId);
-              return (
-                <div key={card.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-pink-300 transition-colors">
-                  <div className={`w-1.5 self-stretch rounded-full bg-gradient-to-b ${grad.cls}`}></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-slate-700 truncate">{card.label}</div>
-                    <div className="text-[10px] text-slate-400">{card.unit ? `Нэгж: ${card.unit}` : 'Нэгжгүй'}</div>
-                  </div>
-                  <input
-                    type="number"
-                    value={values[card.id]}
-                    onChange={e => setValues({ ...values, [card.id]: e.target.value })}
-                    placeholder="0"
-                    className="dash-input w-32 text-right font-bold text-slate-800"
-                  />
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-between text-xs px-2">
-            <span className="text-slate-500">Бөглөсөн: <span className="font-bold text-slate-800">{totalEntered}/{editableCards.length}</span></span>
-            <span className="text-slate-400">{date}</span>
-          </div>
-
           <div className="flex gap-2 pt-1">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
-            <button onClick={handleSave} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
-              <Save className="w-4 h-4" /> Хадгалах
+            <button onClick={onClose} disabled={saving}
+                    className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+              Цуцлах
+            </button>
+            <button onClick={handleSave} disabled={saving}
+                    className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <Save className="w-4 h-4" /> {saving ? 'Хадгалж байна...' : 'Бүгдийг хадгалах'}
             </button>
           </div>
         </div>
