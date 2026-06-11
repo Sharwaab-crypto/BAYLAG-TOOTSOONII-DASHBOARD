@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Search, Boxes, Archive, ChevronRight, Users, DollarSign,
   ArrowUpRight, ArrowDownRight, X,
   Calculator, Sigma, Save, TrendingDown, PackagePlus, ArrowDownCircle,
-  ClipboardList, FileText, Download, Receipt, CheckCircle2, Eye, LogOut, Shield, UserPlus
+  ClipboardList, FileText, Download, Receipt, CheckCircle2, Eye, LogOut, Shield, UserPlus, RefreshCw
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
@@ -87,6 +87,21 @@ export default function Dashboard({ session, profile }) {
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadAllData();
+    setTimeout(() => setRefreshing(false), 500);
+  };
+
+  // Автомат refresh — 60 секунд тутамд бусдын өөрчлөлтийг авна
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadAllData();
+    }, 60000); // 60 секунд
+    return () => clearInterval(interval);
+  }, []);
 
   const [period, setPeriod] = useState('Сар');
   const [view, setView] = useState('Карт');
@@ -381,7 +396,16 @@ export default function Dashboard({ session, profile }) {
 
   const computeValue = (card) => {
     if (!card) return 0;
+    // Тооцооны карт боловч гарын авлагаар утга оруулсан бол түүнийг буцаана
+    // Хэрэв тухайн period дотор dailyValues байгаа бол гарын авлагын утгыг ашиглана
     if (card.formula) {
+      const manualAgg = aggregateValue(card);
+      // dailyValues нь хоосон биш бол гарын авлагын утга байгаа гэж үзнэ
+      const hasManualValues = card.dailyValues && Object.keys(card.dailyValues).length > 0;
+      if (hasManualValues && manualAgg !== 0) {
+        return manualAgg;
+      }
+      // Эс бөгөөс томьёогоор тооцоолно
       const a = allCards.find(c => c.id === card.formula.aId);
       const b = allCards.find(c => c.id === card.formula.bId);
       if (!a || !b) return 0;
@@ -484,7 +508,6 @@ export default function Dashboard({ session, profile }) {
 
     // Supabase-д тус бүрчлэн UPDATE
     for (const card of dept.cards) {
-      if (card.formula) continue;
       if (!(card.id in entries)) continue;
       const newDV = { ...(card.dailyValues || {}) };
       const val = entries[card.id];
@@ -503,7 +526,6 @@ export default function Dashboard({ session, profile }) {
       return {
         ...d,
         cards: d.cards.map(c => {
-          if (c.formula) return c;
           if (!(c.id in entries)) return c;
           const val = entries[c.id];
           const newDV = { ...(c.dailyValues || {}) };
@@ -986,7 +1008,7 @@ export default function Dashboard({ session, profile }) {
   // ====== ӨДРИЙН ТОО ОРУУЛАХ МОДАЛ ======
   const DailyEntryModal = ({ deptId, onClose }) => {
     const dept = departments.find(d => d.id === deptId);
-    const editableCards = dept?.cards.filter(c => !c.formula) || [];
+    const editableCards = dept?.cards || []; // Бүх картыг оруулна (томьёотой ч)
 
     // Огнооны хүрээ (default = сүүлийн 7 хоног)
     const buildRange = (mode) => {
@@ -2196,6 +2218,12 @@ export default function Dashboard({ session, profile }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={handleRefresh} disabled={refreshing}
+                    title="Шинэчлэх"
+                    className="px-3 py-2 rounded-xl glass hover:bg-blue-50 hover:text-blue-600 shadow-sm flex items-center gap-2 text-xs font-bold text-slate-600 transition-colors disabled:opacity-60">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{refreshing ? 'Шинэчлэж...' : 'Шинэчлэх'}</span>
+            </button>
             {isAdmin && (
               <button onClick={() => setShowUserManagement(true)}
                       title="Хэрэглэгч удирдах"
