@@ -396,22 +396,43 @@ export default function Dashboard({ session, profile }) {
 
   const computeValue = (card) => {
     if (!card) return 0;
-    // Тооцооны карт боловч гарын авлагаар утга оруулсан бол түүнийг буцаана
-    // Хэрэв тухайн period дотор dailyValues байгаа бол гарын авлагын утгыг ашиглана
     if (card.formula) {
+      // Гарын авлагаар утга оруулсан бол түүнийг үндсэн утга болгоно
       const manualAgg = aggregateValue(card);
-      // dailyValues нь хоосон биш бол гарын авлагын утга байгаа гэж үзнэ
       const hasManualValues = card.dailyValues && Object.keys(card.dailyValues).length > 0;
       if (hasManualValues && manualAgg !== 0) {
         return manualAgg;
       }
-      // Эс бөгөөс томьёогоор тооцоолно
-      const a = allCards.find(c => c.id === card.formula.aId);
-      const b = allCards.find(c => c.id === card.formula.bId);
-      if (!a || !b) return 0;
-      const av = computeValue(a);
-      const bv = computeValue(b);
-      switch (card.formula.op) {
+
+      // A, B утгууд: card эсвэл number
+      const f = card.formula;
+      let av, bv;
+
+      // Шинэ формат: aType/bType
+      if (f.aType === 'number') {
+        av = Number(f.aValue) || 0;
+      } else {
+        const a = allCards.find(c => c.id === f.aId);
+        av = a ? computeValue(a) : 0;
+      }
+
+      if (f.bType === 'number') {
+        bv = Number(f.bValue) || 0;
+      } else {
+        const b = allCards.find(c => c.id === f.bId);
+        bv = b ? computeValue(b) : 0;
+      }
+
+      // Хуучин формат (aType байхгүй) — backward compatible
+      if (!f.aType && !f.bType) {
+        const a = allCards.find(c => c.id === f.aId);
+        const b = allCards.find(c => c.id === f.bId);
+        if (!a || !b) return 0;
+        av = computeValue(a);
+        bv = computeValue(b);
+      }
+
+      switch (f.op) {
         case '+': return av + bv;
         case '-': return av - bv;
         case '*': return av * bv;
@@ -553,7 +574,12 @@ export default function Dashboard({ session, profile }) {
         'Тренд (%)': c.trend ?? '',
         'Зорилго': c.target ?? '',
         'Тооцооны томьёо': c.formula
-          ? `${allCards.find(x => x.id === c.formula.aId)?.label} ${c.formula.op} ${allCards.find(x => x.id === c.formula.bId)?.label}`
+          ? (() => {
+              const f = c.formula;
+              const aLab = f.aType === 'number' ? fmt(f.aValue) : (allCards.find(x => x.id === f.aId)?.label || '?');
+              const bLab = f.bType === 'number' ? fmt(f.bValue) : (allCards.find(x => x.id === f.bId)?.label || '?');
+              return `${aLab} ${f.op} ${bLab}`;
+            })()
           : '',
         'Бичсэн өдрийн тоо': c.formula ? '-' : Object.keys(c.dailyValues || {}).length
       }));
@@ -693,7 +719,13 @@ export default function Dashboard({ session, profile }) {
     const grad = gradById(card.gradientId);
     const isFormula = !!card.formula;
     const formulaText = isFormula
-      ? `${allCards.find(c => c.id === card.formula.aId)?.label || '?'} ${card.formula.op === '*' ? '×' : card.formula.op === '/' ? '÷' : card.formula.op} ${allCards.find(c => c.id === card.formula.bId)?.label || '?'}`
+      ? (() => {
+          const f = card.formula;
+          const aLabel = f.aType === 'number' ? fmt(f.aValue) : (allCards.find(c => c.id === f.aId)?.label || '?');
+          const bLabel = f.bType === 'number' ? fmt(f.bValue) : (allCards.find(c => c.id === f.bId)?.label || '?');
+          const opSym = f.op === '*' ? '×' : f.op === '/' ? '÷' : f.op;
+          return `${aLabel} ${opSym} ${bLabel}`;
+        })()
       : null;
 
     return (
@@ -790,15 +822,21 @@ export default function Dashboard({ session, profile }) {
   const FormulaModal = ({ deptId, onClose }) => {
     const [name, setName] = useState('');
     const [unit, setUnit] = useState('');
+    // aType: 'card' эсвэл 'number', aId: cardId эсвэл null, aValue: гарын авлагын тоо
+    const [aType, setAType] = useState('card');
     const [aId, setAId] = useState(allCards[0]?.id || '');
+    const [aValue, setAValue] = useState('');
     const [op, setOp] = useState('+');
+    const [bType, setBType] = useState('card');
     const [bId, setBId] = useState(allCards[1]?.id || allCards[0]?.id || '');
+    const [bValue, setBValue] = useState('');
     const [gradientId, setGradientId] = useState('violet');
 
-    const a = allCards.find(c => c.id === aId);
-    const b = allCards.find(c => c.id === bId);
-    const av = a ? computeValue(a) : 0;
-    const bv = b ? computeValue(b) : 0;
+    // А ба B-ийн утгууд
+    const a = aType === 'card' ? allCards.find(c => c.id === aId) : null;
+    const b = bType === 'card' ? allCards.find(c => c.id === bId) : null;
+    const av = aType === 'card' ? (a ? computeValue(a) : 0) : (Number(aValue) || 0);
+    const bv = bType === 'card' ? (b ? computeValue(b) : 0) : (Number(bValue) || 0);
     const result = (() => {
       switch (op) {
         case '+': return av + bv;
@@ -809,28 +847,79 @@ export default function Dashboard({ session, profile }) {
       }
     })();
 
+    // Утгуудын дэлгэрэнгүй текст
+    const aLabel = aType === 'number'
+      ? `Гар: ${fmt(av)}`
+      : (a ? `${a.deptName} · ${a.label} = ${fmt(av)}` : '—');
+    const bLabel = bType === 'number'
+      ? `Гар: ${fmt(bv)}`
+      : (b ? `${b.deptName} · ${b.label} = ${fmt(bv)}` : '—');
+
     const handleSave = () => {
       if (!name.trim()) { alert('Картын нэр оруулна уу'); return; }
-      if (!a || !b) { alert('Хоёр картыг сонгоно уу'); return; }
+      if (aType === 'card' && !a) { alert('A картыг сонгоно уу'); return; }
+      if (bType === 'card' && !b) { alert('B картыг сонгоно уу'); return; }
+      if (aType === 'number' && aValue === '') { alert('A тоог оруулна уу'); return; }
+      if (bType === 'number' && bValue === '') { alert('B тоог оруулна уу'); return; }
+
       addCard(deptId, {
         label: name.toUpperCase(), unit, gradientId, trend: null,
-        formula: { aId, op, bId }
+        formula: {
+          aType, aId: aType === 'card' ? aId : null, aValue: aType === 'number' ? Number(aValue) : null,
+          op,
+          bType, bId: bType === 'card' ? bId : null, bValue: bType === 'number' ? Number(bValue) : null
+        }
       });
       onClose();
     };
+
+    // Сонгох талбар (card эсвэл number)
+    const InputSelector = ({ type, setType, id, setId, value, setValue, label }) => (
+      <div className="space-y-2">
+        <div className="flex gap-1.5">
+          <button type="button" onClick={() => setType('card')}
+                  className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all ${type === 'card' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow' : 'bg-white border border-slate-200 text-slate-600'}`}>
+            📋 Карт сонгох
+          </button>
+          <button type="button" onClick={() => setType('number')}
+                  className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all ${type === 'number' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow' : 'bg-white border border-slate-200 text-slate-600'}`}>
+            🔢 Гараар тоо
+          </button>
+        </div>
+        {type === 'card' ? (
+          <select value={id} onChange={e => setId(e.target.value)} className="dash-input">
+            {allCards.length === 0 ? (
+              <option value="">Карт байхгүй — гараар тоо оруулна уу</option>
+            ) : allCards.map(c => (
+              <option key={c.id} value={c.id}>{c.deptName} · {c.label} = {fmt(computeValue(c))}</option>
+            ))}
+          </select>
+        ) : (
+          <input type="number" value={value} onChange={e => setValue(e.target.value)}
+                 placeholder="Жишээ: 100000000, 0.13, 12 г.м."
+                 className="dash-input" />
+        )}
+      </div>
+    );
 
     return (
       <Modal onClose={onClose} title="Тооцооны карт үүсгэх" icon={Calculator}>
         <div className="space-y-4">
           <Field label="Картын нэр">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Жишээ: Цэвэр ашиг" className="dash-input" />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Жишээ: Цэвэр ашиг, НӨАТ-тэй дүн" className="dash-input" />
           </Field>
 
           <div className="bg-slate-50 rounded-xl p-4 space-y-3">
             <label className="text-xs font-bold text-slate-600 block">Томьёо</label>
-            <select value={aId} onChange={e => setAId(e.target.value)} className="dash-input">
-              {allCards.map(c => <option key={c.id} value={c.id}>{c.deptName} · {c.label} = {fmt(computeValue(c))}</option>)}
-            </select>
+
+            <div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">A — эхний утга</div>
+              <InputSelector
+                type={aType} setType={setAType}
+                id={aId} setId={setAId}
+                value={aValue} setValue={setAValue}
+              />
+            </div>
 
             <div className="grid grid-cols-4 gap-2">
               {['+', '-', '*', '/'].map(o => (
@@ -843,9 +932,14 @@ export default function Dashboard({ session, profile }) {
               ))}
             </div>
 
-            <select value={bId} onChange={e => setBId(e.target.value)} className="dash-input">
-              {allCards.map(c => <option key={c.id} value={c.id}>{c.deptName} · {c.label} = {fmt(computeValue(c))}</option>)}
-            </select>
+            <div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">B — хоёр дахь утга</div>
+              <InputSelector
+                type={bType} setType={setBType}
+                id={bId} setId={setBId}
+                value={bValue} setValue={setBValue}
+              />
+            </div>
 
             <div className="bg-white rounded-lg p-3 border border-slate-200">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Урьдчилан харах</div>
@@ -853,6 +947,9 @@ export default function Dashboard({ session, profile }) {
                 {fmt(av)} {op === '*' ? '×' : op === '/' ? '÷' : op} {fmt(bv)} =
               </div>
               <div className="text-2xl font-bold text-slate-800">{fmt(result)} {unit}</div>
+              <div className="text-[9px] text-slate-400 mt-1 break-all">
+                A: {aLabel} | B: {bLabel}
+              </div>
             </div>
           </div>
 
@@ -988,9 +1085,9 @@ export default function Dashboard({ session, profile }) {
             <div className="bg-slate-50 rounded-lg p-3 text-xs">
               <div className="font-bold text-slate-500 mb-1">ТООЦООНЫ ТОМЬЁО</div>
               <div className="font-mono text-slate-700">
-                {allCards.find(c => c.id === card.formula.aId)?.label}{' '}
+                {card.formula.aType === 'number' ? fmt(card.formula.aValue) : (allCards.find(c => c.id === card.formula.aId)?.label || '?')}{' '}
                 {card.formula.op === '*' ? '×' : card.formula.op === '/' ? '÷' : card.formula.op}{' '}
-                {allCards.find(c => c.id === card.formula.bId)?.label}
+                {card.formula.bType === 'number' ? fmt(card.formula.bValue) : (allCards.find(c => c.id === card.formula.bId)?.label || '?')}
               </div>
             </div>
           )}
