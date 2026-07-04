@@ -85,7 +85,26 @@ export default function Dashboard({ session, profile }) {
   const isAdmin = profile?.role === 'admin';
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+      ]);
+    } catch (err) {
+      console.warn('signOut timeout/error, forcing local logout', err);
+    } finally {
+      // Бүх хадгалсан өгөгдлийг бүрэн цэвэрлэх
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        // Cookie цэвэрлэх (Supabase зарим тохиолдолд cookie ашигладаг)
+        document.cookie.split(';').forEach(c => {
+          document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+        });
+      } catch (e) { /* ignore */ }
+      // Эх хуудас руу хатуу шилжүүлэх (query нэмж cache-ээс сэргийлнэ)
+      window.location.replace(window.location.origin + '/?loggedout=' + Date.now());
+    }
   };
 
   const [refreshing, setRefreshing] = useState(false);
