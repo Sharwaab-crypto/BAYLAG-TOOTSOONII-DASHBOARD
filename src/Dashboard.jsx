@@ -564,7 +564,9 @@ export default function Dashboard({ session, profile }) {
           totalAmount: Number(r.total_amount),
           notes: r.notes,
           deductedStock: r.deducted_stock,
-          archivedAt: r.archived_at
+          archivedAt: r.archived_at,
+          grossAmount: r.gross_amount != null ? Number(r.gross_amount) : Number(r.total_amount),
+          expenses: r.expenses || { delivery: 0, operator: 0, other: 0 }
         })));
       }
 
@@ -725,13 +727,17 @@ export default function Dashboard({ session, profile }) {
     const newRec = {
       id, date: data.date, label: data.label, items: data.items,
       totalAmount: data.totalAmount, notes: data.notes,
-      deductedStock: data.deductedStock, archivedAt
+      deductedStock: data.deductedStock, archivedAt,
+      grossAmount: data.grossAmount ?? data.totalAmount,
+      expenses: data.expenses ?? { delivery: 0, operator: 0, other: 0 }
     };
 
     const { error } = await supabase.from('reconciliations').insert({
       id, date: data.date, label: data.label, items: data.items,
       total_amount: data.totalAmount, notes: data.notes,
-      deducted_stock: data.deductedStock
+      deducted_stock: data.deductedStock,
+      gross_amount: data.grossAmount ?? data.totalAmount,
+      expenses: data.expenses ?? { delivery: 0, operator: 0, other: 0 }
     });
     if (error) { alert('Тооцоо хадгалах алдаа: ' + error.message); return; }
 
@@ -1882,6 +1888,10 @@ export default function Dashboard({ session, profile }) {
     const [notes, setNotes] = useState('');
     const [deductedStock, setDeductedStock] = useState(true);
     const [useCostPrice, setUseCostPrice] = useState(false); // зарах эсвэл өртөг үнээр
+    // Зардлууд (нийт борлуулалтаас хасах)
+    const [deliveryCost, setDeliveryCost] = useState('');   // хүргэлт
+    const [operatorCost, setOperatorCost] = useState('');   // оператор
+    const [otherCost, setOtherCost] = useState('');         // бусад
 
     const enrichedItems = items.map(it => {
       const p = products.find(pr => pr.id === it.productId);
@@ -1899,7 +1909,9 @@ export default function Dashboard({ session, profile }) {
       };
     }).filter(Boolean);
 
-    const totalAmount = enrichedItems.reduce((s, it) => s + it.lineTotal, 0);
+    const grossAmount = enrichedItems.reduce((s, it) => s + it.lineTotal, 0);
+    const totalExpenses = (Number(deliveryCost) || 0) + (Number(operatorCost) || 0) + (Number(otherCost) || 0);
+    const totalAmount = grossAmount - totalExpenses; // цэвэр дүн
     const totalQty    = enrichedItems.reduce((s, it) => s + it.qty, 0);
     const hasInsufficientStock = enrichedItems.some(it => deductedStock && it.qty > it.currentStock);
 
@@ -1927,7 +1939,13 @@ export default function Dashboard({ session, profile }) {
         return;
       }
       saveReconciliation({
-        date, label, items: enrichedItems, totalAmount, notes, deductedStock
+        date, label, items: enrichedItems, totalAmount, notes, deductedStock,
+        grossAmount,
+        expenses: {
+          delivery: Number(deliveryCost) || 0,
+          operator: Number(operatorCost) || 0,
+          other: Number(otherCost) || 0
+        }
       });
       onClose();
     };
@@ -2026,14 +2044,51 @@ export default function Dashboard({ session, profile }) {
               )}
             </div>
 
-            {/* Нийт дүн */}
+            {/* Нийт дүн + зардлын задаргаа */}
             {items.length > 0 && (
-              <div className="bg-gradient-to-r from-pink-50 to-orange-50 px-4 py-3 border-t border-pink-100 flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">НИЙТ ДҮН</div>
-                  <div className="text-[10px] text-slate-500">{items.length} төрөл · {totalQty}ш</div>
+              <div className="border-t border-slate-200">
+                {/* Барааны нийт */}
+                <div className="px-4 py-2.5 flex items-center justify-between bg-slate-50">
+                  <div className="text-xs font-bold text-slate-600">Барааны нийт дүн ({items.length} төрөл · {totalQty}ш)</div>
+                  <div className="text-sm font-bold text-slate-800">{fmt(grossAmount)}₮</div>
                 </div>
-                <div className="text-2xl font-bold text-pink-600">{fmt(totalAmount)} <span className="text-sm">₮</span></div>
+
+                {/* Зардлууд */}
+                <div className="px-4 py-3 space-y-2 bg-amber-50/40 border-t border-amber-100">
+                  <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-1">Хасах зардлууд</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 mb-1 block">Хүргэлт (₮)</label>
+                      <input type="number" value={deliveryCost} onChange={e => setDeliveryCost(e.target.value)}
+                             placeholder="0" className="w-full px-2 py-1.5 text-xs text-right font-bold rounded-lg border border-slate-200 focus:border-amber-400 focus:outline-none bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 mb-1 block">Оператор (₮)</label>
+                      <input type="number" value={operatorCost} onChange={e => setOperatorCost(e.target.value)}
+                             placeholder="0" className="w-full px-2 py-1.5 text-xs text-right font-bold rounded-lg border border-slate-200 focus:border-amber-400 focus:outline-none bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 mb-1 block">Бусад (₮)</label>
+                      <input type="number" value={otherCost} onChange={e => setOtherCost(e.target.value)}
+                             placeholder="0" className="w-full px-2 py-1.5 text-xs text-right font-bold rounded-lg border border-slate-200 focus:border-amber-400 focus:outline-none bg-white" />
+                    </div>
+                  </div>
+                  {totalExpenses > 0 && (
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="text-slate-500">Нийт зардал:</span>
+                      <span className="font-bold text-amber-600">−{fmt(totalExpenses)}₮</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Цэвэр дүн */}
+                <div className="bg-gradient-to-r from-pink-50 to-orange-50 px-4 py-3 border-t border-pink-100 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ЦЭВЭР ДҮН</div>
+                    <div className="text-[10px] text-slate-500">Бараа − Зардал</div>
+                  </div>
+                  <div className="text-2xl font-bold text-pink-600">{fmt(totalAmount)} <span className="text-sm">₮</span></div>
+                </div>
               </div>
             )}
           </div>
@@ -2096,8 +2151,34 @@ export default function Dashboard({ session, profile }) {
                     <td className="px-3 py-2 text-right font-bold text-slate-800">{fmt(it.lineTotal)}₮</td>
                   </tr>
                 ))}
+                <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                  <td colSpan={4} className="px-3 py-2 text-right text-slate-600 text-xs uppercase tracking-wider">Барааны нийт:</td>
+                  <td className="px-3 py-2 text-right text-slate-800 text-sm">{fmt(rec.grossAmount ?? rec.totalAmount)}₮</td>
+                </tr>
+                {rec.expenses && (rec.expenses.delivery > 0 || rec.expenses.operator > 0 || rec.expenses.other > 0) && (
+                  <>
+                    {rec.expenses.delivery > 0 && (
+                      <tr className="text-xs bg-amber-50/40">
+                        <td colSpan={4} className="px-3 py-1.5 text-right text-amber-700">Хүргэлт:</td>
+                        <td className="px-3 py-1.5 text-right font-bold text-amber-600">−{fmt(rec.expenses.delivery)}₮</td>
+                      </tr>
+                    )}
+                    {rec.expenses.operator > 0 && (
+                      <tr className="text-xs bg-amber-50/40">
+                        <td colSpan={4} className="px-3 py-1.5 text-right text-amber-700">Оператор:</td>
+                        <td className="px-3 py-1.5 text-right font-bold text-amber-600">−{fmt(rec.expenses.operator)}₮</td>
+                      </tr>
+                    )}
+                    {rec.expenses.other > 0 && (
+                      <tr className="text-xs bg-amber-50/40">
+                        <td colSpan={4} className="px-3 py-1.5 text-right text-amber-700">Бусад:</td>
+                        <td className="px-3 py-1.5 text-right font-bold text-amber-600">−{fmt(rec.expenses.other)}₮</td>
+                      </tr>
+                    )}
+                  </>
+                )}
                 <tr className="border-t-2 border-pink-200 bg-gradient-to-r from-pink-50 to-orange-50 font-bold">
-                  <td colSpan={4} className="px-3 py-3 text-right text-pink-700 text-xs uppercase tracking-wider">Нийт:</td>
+                  <td colSpan={4} className="px-3 py-3 text-right text-pink-700 text-xs uppercase tracking-wider">Цэвэр дүн:</td>
                   <td className="px-3 py-3 text-right text-pink-700 text-base">{fmt(rec.totalAmount)}₮</td>
                 </tr>
               </tbody>
