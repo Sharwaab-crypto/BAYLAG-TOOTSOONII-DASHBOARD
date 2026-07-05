@@ -10,7 +10,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Хэрэв дөнгөж гарсан бол (?loggedout) session-ыг үл тоомсорлож Login харуулна
+    console.log('🟢 App.jsx VERSION 11 ажиллаж байна')
+
     const params = new URLSearchParams(window.location.search)
     const justLoggedOut = params.has('loggedout')
 
@@ -24,8 +25,6 @@ export default function App() {
     }
 
     let done = false
-
-    // Аюулгүйн timeout — 8 секундын дараа loading заавал зогсоно
     const safetyTimeout = setTimeout(() => {
       if (!done) setLoading(false)
     }, 8000)
@@ -33,19 +32,22 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => {
       done = true
       clearTimeout(safetyTimeout)
+      console.log('🔑 SESSION шалгав:', data.session ? 'НЭВТЭРСЭН' : 'НЭВТРЭЭГҮЙ (null)')
       setSession(data.session)
       if (data.session) {
         loadProfile(data.session.user.id)
       } else {
         setLoading(false)
       }
-    }).catch(() => {
+    }).catch((err) => {
       done = true
       clearTimeout(safetyTimeout)
+      console.log('❌ getSession алдаа:', err)
       setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth өөрчлөгдөв:', event, session ? 'session бий' : 'session алга')
       setSession(session)
       if (session) {
         loadProfile(session.user.id)
@@ -70,7 +72,7 @@ export default function App() {
         .single()
       if (data) setProfile(data)
     } catch (e) {
-      // profile ачаалж чадсангүй ч loading зогсооно
+      // ignore
     } finally {
       setLoading(false)
     }
@@ -97,8 +99,10 @@ export default function App() {
   }
 
   if (!session) {
+    console.log('➡️ Login дэлгэц харуулж байна (session алга)')
     return <Login />
   }
 
+  console.log('➡️ Dashboard харуулж байна (session бий)')
   return <Dashboard session={session} profile={profile} />
 }
