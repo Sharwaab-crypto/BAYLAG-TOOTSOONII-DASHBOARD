@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus, Calendar, BarChart3, FileSpreadsheet, Package, AlertCircle,
   Edit2, Trash2, Search, Boxes, Archive, ChevronRight, Users, DollarSign,
@@ -59,6 +59,219 @@ function Field({ label, children, hint }) {
     </div>
   );
 }
+
+// ====== АШГИЙН ТООЦООНЫ ТАБ ======
+function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance, canEdit, onAddExpense, onDeleteExpense, onSaveMonthly, fmt }) {
+  const current = monthlyFinance.find(m => m.month === profitMonth);
+
+  const [form, setForm] = React.useState({
+    revenue: '', orderCount: '', variableCostPerOrder: '', notes: '', fixedExpenses: {}
+  });
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    if (current) {
+      setForm({
+        revenue: String(current.revenue || ''),
+        orderCount: String(current.orderCount || ''),
+        variableCostPerOrder: String(current.variableCostPerOrder || ''),
+        notes: current.notes || '',
+        fixedExpenses: current.fixedExpenses || {}
+      });
+    } else {
+      const defaultFixed = {};
+      fixedExpenses.forEach(e => { defaultFixed[e.id] = e.amount; });
+      setForm({ revenue: '', orderCount: '', variableCostPerOrder: '', notes: '', fixedExpenses: defaultFixed });
+    }
+    setSaved(false);
+  }, [profitMonth, monthlyFinance]);
+
+  const revenue = Number(form.revenue) || 0;
+  const orderCount = Number(form.orderCount) || 0;
+  const varCostPerOrder = Number(form.variableCostPerOrder) || 0;
+  const totalVariableCost = orderCount * varCostPerOrder;
+  const totalFixedCost = Object.values(form.fixedExpenses).reduce((s, v) => s + (Number(v) || 0), 0);
+  const totalCost = totalVariableCost + totalFixedCost;
+  const profit = revenue - totalCost;
+  const profitMargin = revenue > 0 ? (profit / revenue * 100) : 0;
+  const profitPerOrder = orderCount > 0 ? (profit / orderCount) : 0;
+  const revenuePerOrder = orderCount > 0 ? (revenue / orderCount) : 0;
+  const costPerOrder = orderCount > 0 ? (totalCost / orderCount) : 0;
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSaveMonthly(profitMonth, {
+      revenue, orderCount, variableCostPerOrder: varCostPerOrder,
+      fixedExpenses: form.fixedExpenses, notes: form.notes
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const monthLabel = (() => {
+    const [y, m] = profitMonth.split('-');
+    const months = ['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
+    return `${y} оны ${months[parseInt(m) - 1]}`;
+  })();
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
+            <DollarSign className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="text-lg font-bold text-slate-800">Ашгийн тооцоо</div>
+            <div className="text-xs text-slate-500">{monthLabel}</div>
+          </div>
+        </div>
+        <input type="month" value={profitMonth} onChange={e => setProfitMonth(e.target.value)}
+               className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:border-emerald-400" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg">
+          <div className="text-[10px] font-bold uppercase tracking-wider opacity-80 mb-1">Нийт орлого</div>
+          <div className="text-2xl font-bold">{fmt(revenue)}₮</div>
+          {orderCount > 0 && <div className="text-[11px] opacity-70 mt-1">{fmt(revenuePerOrder)}₮ / захиалга</div>}
+        </div>
+        <div className="bg-gradient-to-br from-orange-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
+          <div className="text-[10px] font-bold uppercase tracking-wider opacity-80 mb-1">Нийт зардал</div>
+          <div className="text-2xl font-bold">{fmt(totalCost)}₮</div>
+          {orderCount > 0 && <div className="text-[11px] opacity-70 mt-1">{fmt(costPerOrder)}₮ / захиалга</div>}
+        </div>
+        <div className={`rounded-2xl p-5 text-white shadow-lg ${profit >= 0 ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-500 to-red-600'}`}>
+          <div className="text-[10px] font-bold uppercase tracking-wider opacity-80 mb-1">Цэвэр ашиг</div>
+          <div className="text-2xl font-bold">{fmt(profit)}₮</div>
+          {orderCount > 0 && <div className="text-[11px] opacity-70 mt-1">{fmt(profitPerOrder)}₮ / захиалга</div>}
+        </div>
+        <div className={`rounded-2xl p-5 shadow-lg ${profitMargin >= 0 ? 'bg-gradient-to-br from-violet-500 to-purple-600' : 'bg-gradient-to-br from-slate-500 to-slate-700'} text-white`}>
+          <div className="text-[10px] font-bold uppercase tracking-wider opacity-80 mb-1">Ашгийн маржин</div>
+          <div className="text-2xl font-bold">{profitMargin.toFixed(1)}%</div>
+          <div className="text-[11px] opacity-70 mt-1">{orderCount} захиалга</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white space-y-3">
+          <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <ArrowUpRight className="w-4 h-4 text-blue-500" /> Орлого ба захиалга
+          </div>
+          <Field label="Нийт орлого (₮)">
+            <input type="number" value={form.revenue} disabled={!canEdit}
+                   onChange={e => setForm({ ...form, revenue: e.target.value })}
+                   placeholder="0" className="dash-input" />
+          </Field>
+          <Field label="Захиалгын тоо">
+            <input type="number" value={form.orderCount} disabled={!canEdit}
+                   onChange={e => setForm({ ...form, orderCount: e.target.value })}
+                   placeholder="0" className="dash-input" />
+          </Field>
+          <Field label="Нэг захиалганд ногдох зардал (₮)" hint="Барааны өртөг, хүргэлт, савлагаа г.м.">
+            <input type="number" value={form.variableCostPerOrder} disabled={!canEdit}
+                   onChange={e => setForm({ ...form, variableCostPerOrder: e.target.value })}
+                   placeholder="0" className="dash-input" />
+          </Field>
+          {orderCount > 0 && varCostPerOrder > 0 && (
+            <div className="text-[11px] text-slate-600 bg-orange-50/60 border border-orange-100 rounded-lg p-2">
+              Захиалгын нийт зардал: {fmt(orderCount)} × {fmt(varCostPerOrder)}₮ = <span className="font-bold">{fmt(totalVariableCost)}₮</span>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-rose-500" /> Сарын тогтмол зардал
+            </div>
+            {canEdit && (
+              <button onClick={onAddExpense}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold hover:bg-emerald-100 flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Нэмэх
+              </button>
+            )}
+          </div>
+
+          {fixedExpenses.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-400">
+              Тогтмол зардал алга.<br />
+              {canEdit && '"Нэмэх" дарж түрээс, цалин гэх мэт зардал нэмнэ үү.'}
+            </div>
+          ) : (
+            <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
+              {fixedExpenses.map(exp => (
+                <div key={exp.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-slate-700 truncate">{exp.name}</div>
+                    <div className="text-[9px] text-slate-400">{exp.category}</div>
+                  </div>
+                  <input type="number" disabled={!canEdit}
+                         value={form.fixedExpenses[exp.id] ?? exp.amount}
+                         onChange={e => setForm({ ...form, fixedExpenses: { ...form.fixedExpenses, [exp.id]: e.target.value } })}
+                         className="w-28 px-2 py-1 text-xs text-right font-bold rounded border border-slate-200 focus:border-emerald-400 focus:outline-none" />
+                  <span className="text-[10px] text-slate-400">₮</span>
+                  {canEdit && (
+                    <button onClick={() => onDeleteExpense(exp.id)}
+                            className="p-1 rounded text-slate-300 hover:text-rose-500 hover:bg-rose-50">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-200 text-xs font-bold">
+                <span className="text-slate-600">Тогтмол зардлын нийт:</span>
+                <span className="text-rose-600">{fmt(totalFixedCost)}₮</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white">
+        <div className="text-sm font-bold text-slate-800 mb-3">Тооцооны задаргаа</div>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between py-1.5">
+            <span className="text-slate-600">Нийт орлого</span>
+            <span className="font-bold text-blue-600">+{fmt(revenue)}₮</span>
+          </div>
+          <div className="flex items-center justify-between py-1.5 border-t border-slate-100">
+            <span className="text-slate-600">Захиалгын зардал ({fmt(orderCount)} × {fmt(varCostPerOrder)}₮)</span>
+            <span className="font-bold text-orange-600">−{fmt(totalVariableCost)}₮</span>
+          </div>
+          <div className="flex items-center justify-between py-1.5 border-t border-slate-100">
+            <span className="text-slate-600">Тогтмол зардал</span>
+            <span className="font-bold text-rose-600">−{fmt(totalFixedCost)}₮</span>
+          </div>
+          <div className="flex items-center justify-between py-2.5 border-t-2 border-slate-200 mt-1">
+            <span className="font-bold text-slate-800">ЦЭВЭР АШИГ</span>
+            <span className={`text-lg font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {profit >= 0 ? '+' : ''}{fmt(profit)}₮
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {canEdit && (
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white space-y-3">
+          <Field label="Тэмдэглэл (заавал биш)">
+            <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                      placeholder="Тухайн сарын онцлог, тайлбар..." rows={2}
+                      className="dash-input resize-none" />
+          </Field>
+          <button onClick={handleSave} disabled={saving}
+                  className={`w-full py-3 rounded-xl text-white text-sm font-bold shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 transition-all ${saved ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-violet-500 to-pink-500'}`}>
+            {saved ? <><CheckCircle2 className="w-4 h-4" /> Хадгалагдлаа!</> : saving ? 'Хадгалж байна...' : <><Save className="w-4 h-4" /> {monthLabel}-ын тооцоог хадгалах</>}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 function Modal({ onClose, title, icon: Icon, children, maxWidth = 'max-w-md' }) {
   return (
@@ -163,6 +376,12 @@ export default function Dashboard({ session, profile }) {
   // Хэлтэс нэмэх/устгах
   const [showAddDept, setShowAddDept] = useState(false);
   const [confirmingDeptDelete, setConfirmingDeptDelete] = useState(null);
+
+  // Ашгийн тооцоо
+  const [fixedExpenses, setFixedExpenses] = useState([]);       // тогтмол зардлын төрлүүд
+  const [monthlyFinance, setMonthlyFinance] = useState([]);     // сар бүрийн санхүү
+  const [profitMonth, setProfitMonth] = useState(monthStr());   // сонгосон сар YYYY-MM
+  const [showAddExpense, setShowAddExpense] = useState(false);
 
   // Огнооны харагдац
   const MONTHS_MN = ['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
@@ -272,12 +491,80 @@ export default function Dashboard({ session, profile }) {
           archivedAt: r.archived_at
         })));
       }
+
+      // Тогтмол зардлууд
+      const { data: fixed } = await supabase.from('fixed_expenses').select('*').order('created_at');
+      if (fixed) {
+        setFixedExpenses(fixed.map(f => ({
+          id: f.id, name: f.name, amount: Number(f.amount), category: f.category
+        })));
+      }
+
+      // Сар бүрийн санхүү
+      const { data: monthly } = await supabase.from('monthly_finance').select('*').order('month', { ascending: false });
+      if (monthly) {
+        setMonthlyFinance(monthly.map(m => ({
+          id: m.id, month: m.month,
+          revenue: Number(m.revenue),
+          orderCount: m.order_count,
+          variableCostPerOrder: Number(m.variable_cost_per_order),
+          fixedExpenses: m.fixed_expenses || {},
+          notes: m.notes
+        })));
+      }
     } catch (err) {
       console.error('Supabase ачаалах алдаа:', err);
       alert('Өгөгдөл ачаалахад алдаа гарлаа. Console-г шалгана уу.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ====== АШГИЙН ТООЦООНЫ ФУНКЦҮҮД ======
+  const addFixedExpense = async (data) => {
+    const id = `fe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const { error } = await supabase.from('fixed_expenses').insert({
+      id, name: data.name, amount: data.amount, category: data.category
+    });
+    if (error) { alert('Зардал нэмэх алдаа: ' + error.message); return; }
+    setFixedExpenses(prev => [...prev, { id, ...data }]);
+  };
+
+  const deleteFixedExpense = async (id) => {
+    const { error } = await supabase.from('fixed_expenses').delete().eq('id', id);
+    if (error) { alert('Устгах алдаа: ' + error.message); return; }
+    setFixedExpenses(prev => prev.filter(e => e.id !== id));
+  };
+
+  // Сарын санхүүг хадгалах (upsert)
+  const saveMonthlyFinance = async (month, data) => {
+    const existing = monthlyFinance.find(m => m.month === month);
+    const id = existing?.id || `mf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+    const payload = {
+      id, month,
+      revenue: data.revenue || 0,
+      order_count: data.orderCount || 0,
+      variable_cost_per_order: data.variableCostPerOrder || 0,
+      fixed_expenses: data.fixedExpenses || {},
+      notes: data.notes || '',
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('monthly_finance').upsert(payload, { onConflict: 'month' });
+    if (error) { alert('Санхүү хадгалах алдаа: ' + error.message); return; }
+
+    setMonthlyFinance(prev => {
+      const filtered = prev.filter(m => m.month !== month);
+      return [{
+        id, month,
+        revenue: data.revenue || 0,
+        orderCount: data.orderCount || 0,
+        variableCostPerOrder: data.variableCostPerOrder || 0,
+        fixedExpenses: data.fixedExpenses || {},
+        notes: data.notes || ''
+      }, ...filtered].sort((a, b) => b.month.localeCompare(a.month));
+    });
   };
 
   // Барааны функцүүд
@@ -1740,6 +2027,47 @@ export default function Dashboard({ session, profile }) {
   };
 
   // ====== ШИНЭ ХЭЛТЭС НЭМЭХ ФОРМ ======
+  // ====== ТОГТМОЛ ЗАРДАЛ НЭМЭХ ФОРМ ======
+  const AddExpenseForm = ({ onSave, onClose }) => {
+    const [name, setName] = useState('');
+    const [amount, setAmount] = useState('');
+    const [category, setCategory] = useState('Түрээс');
+    const categories = ['Түрээс', 'Цалин', 'Интернет/Утас', 'Ус/Цахилгаан', 'Тээвэр', 'Маркетинг', 'Бусад'];
+
+    const handleSubmit = () => {
+      if (!name.trim()) { alert('Зардлын нэрийг оруулна уу'); return; }
+      onSave({ name: name.trim(), amount: Number(amount) || 0, category });
+      onClose();
+    };
+
+    return (
+      <div className="space-y-4">
+        <Field label="Зардлын нэр">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Жишээ: Оффисын түрээс" autoFocus className="dash-input" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Дүн (₮/сар)">
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" className="dash-input" />
+          </Field>
+          <Field label="Ангилал">
+            <select value={category} onChange={e => setCategory(e.target.value)} className="dash-input">
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="text-[11px] text-slate-500 bg-blue-50/60 border border-blue-100 rounded-lg p-2">
+          💡 Энэ бол сар бүр тогтмол гардаг зардал. Сар бүрийн тооцоонд автоматаар нэмэгдэнэ.
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
+          <button onClick={handleSubmit} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
+            <Plus className="w-4 h-4" /> Нэмэх
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const AddDepartmentForm = ({ onSave, onClose }) => {
     const [name, setName] = useState('');
     const [icon, setIcon] = useState('package');
@@ -2383,6 +2711,10 @@ export default function Dashboard({ session, profile }) {
                   className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'reconcile' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md shadow-purple-500/30' : 'text-slate-600'}`}>
             <Receipt className="w-4 h-4" /> Тооцоо
           </button>
+          <button onClick={() => setActiveTab('profit')}
+                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'profit' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/30' : 'text-slate-600'}`}>
+            <DollarSign className="w-4 h-4" /> Ашгийн тооцоо
+          </button>
           <button onClick={() => setActiveTab('report')}
                   className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'report' ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md shadow-purple-500/30' : 'text-slate-600'}`}>
             <FileText className="w-4 h-4" /> Нэгдсэн тайлан
@@ -2574,6 +2906,21 @@ export default function Dashboard({ session, profile }) {
           </div>
         ))}
           </>
+        )}
+
+        {/* TAB: Ашгийн тооцоо */}
+        {activeTab === 'profit' && (
+          <ProfitTab
+            profitMonth={profitMonth}
+            setProfitMonth={setProfitMonth}
+            fixedExpenses={fixedExpenses}
+            monthlyFinance={monthlyFinance}
+            canEdit={canEdit}
+            onAddExpense={() => setShowAddExpense(true)}
+            onDeleteExpense={deleteFixedExpense}
+            onSaveMonthly={saveMonthlyFinance}
+            fmt={fmt}
+          />
         )}
 
         {/* TAB: Бараа нөөц */}
@@ -3130,6 +3477,13 @@ export default function Dashboard({ session, profile }) {
       {showReconcileModal && <ReconcileModal onClose={() => setShowReconcileModal(false)} />}
       {viewingReconcile && <ViewReconcileModal rec={viewingReconcile} onClose={() => setViewingReconcile(null)} />}
       {showUserManagement && <UserManagementModal onClose={() => setShowUserManagement(false)} />}
+
+      {/* Тогтмол зардал нэмэх модал */}
+      {showAddExpense && (
+        <Modal onClose={() => setShowAddExpense(false)} title="Тогтмол зардал нэмэх" icon={DollarSign} maxWidth="max-w-md">
+          <AddExpenseForm onSave={addFixedExpense} onClose={() => setShowAddExpense(false)} />
+        </Modal>
+      )}
 
       {/* Шинэ хэлтэс нэмэх модал */}
       {showAddDept && (
