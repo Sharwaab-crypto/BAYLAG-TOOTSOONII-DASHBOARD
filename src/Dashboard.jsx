@@ -61,8 +61,12 @@ function Field({ label, children, hint }) {
 }
 
 // ====== АШГИЙН ТООЦООНЫ ТАБ ======
-function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance, canEdit, onAddExpense, onDeleteExpense, onSaveMonthly, fmt }) {
+function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance, dailyExpenses, canEdit, onAddExpense, onDeleteExpense, onSaveMonthly, onAddDailyExpense, onDeleteDailyExpense, fmt }) {
   const current = monthlyFinance.find(m => m.month === profitMonth);
+
+  // Тухайн сарын урсгал зардлууд
+  const monthDailyExpenses = (dailyExpenses || []).filter(e => e.date && e.date.startsWith(profitMonth));
+  const totalDailyExpenses = monthDailyExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   const [form, setForm] = React.useState({
     revenue: '', orderCount: '', variableCostPerOrder: '', notes: '', fixedExpenses: {}
@@ -92,7 +96,7 @@ function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance,
   const varCostPerOrder = Number(form.variableCostPerOrder) || 0;
   const totalVariableCost = orderCount * varCostPerOrder;
   const totalFixedCost = Object.values(form.fixedExpenses).reduce((s, v) => s + (Number(v) || 0), 0);
-  const totalCost = totalVariableCost + totalFixedCost;
+  const totalCost = totalVariableCost + totalFixedCost + totalDailyExpenses;
   const profit = revenue - totalCost;
   const profitMargin = revenue > 0 ? (profit / revenue * 100) : 0;
   const profitPerOrder = orderCount > 0 ? (profit / orderCount) : 0;
@@ -245,6 +249,10 @@ function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance,
             <span className="text-slate-600">Тогтмол зардал</span>
             <span className="font-bold text-rose-600">−{fmt(totalFixedCost)}₮</span>
           </div>
+          <div className="flex items-center justify-between py-1.5 border-t border-slate-100">
+            <span className="text-slate-600">Урсгал зардал ({monthDailyExpenses.length} бичилт)</span>
+            <span className="font-bold text-amber-600">−{fmt(totalDailyExpenses)}₮</span>
+          </div>
           <div className="flex items-center justify-between py-2.5 border-t-2 border-slate-200 mt-1">
             <span className="font-bold text-slate-800">ЦЭВЭР АШИГ</span>
             <span className={`text-lg font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -252,6 +260,70 @@ function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance,
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Урсгал зардлын жагсаалт */}
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <ArrowDownCircle className="w-4 h-4 text-amber-500" /> Урсгал зардал ({profitMonth})
+          </div>
+          {canEdit && (
+            <button onClick={onAddDailyExpense}
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-md hover:shadow-lg flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> Зардал бүртгэх
+            </button>
+          )}
+        </div>
+
+        {monthDailyExpenses.length === 0 ? (
+          <div className="text-center py-6 text-xs text-slate-400">
+            Энэ сард урсгал зардал бүртгээгүй байна.<br />
+            {canEdit && '"Зардал бүртгэх" дарж такси, бичиг хэрэг гэх мэт зардал нэмнэ үү.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                  <th className="px-2 py-2 text-left">Огноо</th>
+                  <th className="px-2 py-2 text-left">Юунд зарцуулсан</th>
+                  <th className="px-2 py-2 text-left">Ангилал</th>
+                  <th className="px-2 py-2 text-right">Дүн</th>
+                  {canEdit && <th className="px-2 py-2"></th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {monthDailyExpenses.map(exp => (
+                  <tr key={exp.id} className="hover:bg-slate-50/50">
+                    <td className="px-2 py-2.5 text-xs text-slate-500 font-mono whitespace-nowrap">{exp.date}</td>
+                    <td className="px-2 py-2.5">
+                      <div className="text-xs font-bold text-slate-700">{exp.name}</div>
+                      {exp.notes && <div className="text-[10px] text-slate-400">{exp.notes}</div>}
+                    </td>
+                    <td className="px-2 py-2.5">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">{exp.category}</span>
+                    </td>
+                    <td className="px-2 py-2.5 text-right text-xs font-bold text-amber-600 whitespace-nowrap">{fmt(exp.amount)}₮</td>
+                    {canEdit && (
+                      <td className="px-2 py-2.5 text-right">
+                        <button onClick={() => onDeleteDailyExpense(exp.id)}
+                                className="p-1 rounded text-slate-300 hover:text-rose-500 hover:bg-rose-50">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-slate-200 font-bold">
+                  <td colSpan={3} className="px-2 py-2.5 text-xs text-slate-600 text-right">Нийт урсгал зардал:</td>
+                  <td className="px-2 py-2.5 text-right text-sm text-amber-600 whitespace-nowrap">{fmt(totalDailyExpenses)}₮</td>
+                  {canEdit && <td></td>}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {canEdit && (
@@ -383,6 +455,10 @@ export default function Dashboard({ session, profile }) {
   const [profitMonth, setProfitMonth] = useState(monthStr());   // сонгосон сар YYYY-MM
   const [showAddExpense, setShowAddExpense] = useState(false);
 
+  // Урсгал зардал
+  const [dailyExpenses, setDailyExpenses] = useState([]);
+  const [showAddDailyExpense, setShowAddDailyExpense] = useState(false);
+
   // Огнооны харагдац
   const MONTHS_MN = ['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
   const MONTHS_EN = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -512,12 +588,38 @@ export default function Dashboard({ session, profile }) {
           notes: m.notes
         })));
       }
+
+      // Урсгал зардал
+      const { data: dexp } = await supabase.from('daily_expenses').select('*').order('date', { ascending: false });
+      if (dexp) {
+        setDailyExpenses(dexp.map(d => ({
+          id: d.id, date: d.date, name: d.name,
+          amount: Number(d.amount), category: d.category, notes: d.notes
+        })));
+      }
     } catch (err) {
       console.error('Supabase ачаалах алдаа:', err);
       alert('Өгөгдөл ачаалахад алдаа гарлаа. Console-г шалгана уу.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ====== УРСГАЛ ЗАРДЛЫН ФУНКЦҮҮД ======
+  const addDailyExpense = async (data) => {
+    const id = `de_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const { error } = await supabase.from('daily_expenses').insert({
+      id, date: data.date, name: data.name, amount: data.amount,
+      category: data.category, notes: data.notes || ''
+    });
+    if (error) { alert('Зардал нэмэх алдаа: ' + error.message); return; }
+    setDailyExpenses(prev => [{ id, ...data }, ...prev].sort((a, b) => b.date.localeCompare(a.date)));
+  };
+
+  const deleteDailyExpense = async (id) => {
+    const { error } = await supabase.from('daily_expenses').delete().eq('id', id);
+    if (error) { alert('Устгах алдаа: ' + error.message); return; }
+    setDailyExpenses(prev => prev.filter(e => e.id !== id));
   };
 
   // ====== АШГИЙН ТООЦООНЫ ФУНКЦҮҮД ======
@@ -2027,6 +2129,53 @@ export default function Dashboard({ session, profile }) {
   };
 
   // ====== ШИНЭ ХЭЛТЭС НЭМЭХ ФОРМ ======
+  // ====== УРСГАЛ ЗАРДАЛ НЭМЭХ ФОРМ ======
+  const AddDailyExpenseForm = ({ onSave, onClose, defaultMonth }) => {
+    const [date, setDate] = useState(todayStr());
+    const [name, setName] = useState('');
+    const [amount, setAmount] = useState('');
+    const [category, setCategory] = useState('Бусад');
+    const [notes, setNotes] = useState('');
+    const categories = ['Такси/Тээвэр', 'Бичиг хэрэг', 'Хоол унд', 'Засвар', 'Урамшуулал', 'Татвар', 'Бусад'];
+
+    const handleSubmit = () => {
+      if (!name.trim()) { alert('Юунд зарцуулсныг бичнэ үү'); return; }
+      if (!amount || Number(amount) <= 0) { alert('Дүнг зөв оруулна уу'); return; }
+      onSave({ date, name: name.trim(), amount: Number(amount), category, notes: notes.trim() });
+      onClose();
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Огноо">
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} max={todayStr()} className="dash-input" />
+          </Field>
+          <Field label="Дүн (₮)">
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus className="dash-input" />
+          </Field>
+        </div>
+        <Field label="Юунд зарцуулсан">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Жишээ: Такси, Бичгийн цаас, Хоол..." className="dash-input" />
+        </Field>
+        <Field label="Ангилал">
+          <select value={category} onChange={e => setCategory(e.target.value)} className="dash-input">
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Тэмдэглэл (заавал биш)">
+          <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Нэмэлт тайлбар..." className="dash-input" />
+        </Field>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Цуцлах</button>
+          <button onClick={handleSubmit} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-1.5">
+            <Plus className="w-4 h-4" /> Бүртгэх
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // ====== ТОГТМОЛ ЗАРДАЛ НЭМЭХ ФОРМ ======
   const AddExpenseForm = ({ onSave, onClose }) => {
     const [name, setName] = useState('');
@@ -2915,10 +3064,13 @@ export default function Dashboard({ session, profile }) {
             setProfitMonth={setProfitMonth}
             fixedExpenses={fixedExpenses}
             monthlyFinance={monthlyFinance}
+            dailyExpenses={dailyExpenses}
             canEdit={canEdit}
             onAddExpense={() => setShowAddExpense(true)}
             onDeleteExpense={deleteFixedExpense}
             onSaveMonthly={saveMonthlyFinance}
+            onAddDailyExpense={() => setShowAddDailyExpense(true)}
+            onDeleteDailyExpense={deleteDailyExpense}
             fmt={fmt}
           />
         )}
@@ -3331,6 +3483,48 @@ export default function Dashboard({ session, profile }) {
             const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
             ws['!cols'] = headers.map(() => ({ wch: 18 }));
             XLSX.utils.book_append_sheet(wb, ws, 'Нэгдсэн тайлан');
+
+            // Ашгийн тооцооны sheet
+            if (monthlyFinance.length > 0) {
+              const profitRows = monthlyFinance.map(m => {
+                const fixedTotal = Object.values(m.fixedExpenses || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+                const varTotal = (m.orderCount || 0) * (m.variableCostPerOrder || 0);
+                const dailyTotal = (dailyExpenses || [])
+                  .filter(e => e.date && e.date.startsWith(m.month))
+                  .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+                const totalCost = fixedTotal + varTotal + dailyTotal;
+                const profit = (m.revenue || 0) - totalCost;
+                return {
+                  'Сар': m.month,
+                  'Орлого': m.revenue || 0,
+                  'Захиалгын тоо': m.orderCount || 0,
+                  'Захиалгын зардал': varTotal,
+                  'Тогтмол зардал': fixedTotal,
+                  'Урсгал зардал': dailyTotal,
+                  'Нийт зардал': totalCost,
+                  'Цэвэр ашиг': profit,
+                  'Ашгийн маржин %': m.revenue > 0 ? ((profit / m.revenue) * 100).toFixed(1) : 0
+                };
+              });
+              const wsProfit = XLSX.utils.json_to_sheet(profitRows);
+              wsProfit['!cols'] = [{wch:10},{wch:14},{wch:12},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14}];
+              XLSX.utils.book_append_sheet(wb, wsProfit, 'Ашгийн тооцоо');
+            }
+
+            // Урсгал зардлын sheet
+            if (dailyExpenses && dailyExpenses.length > 0) {
+              const expRows = dailyExpenses.map(e => ({
+                'Огноо': e.date,
+                'Юунд зарцуулсан': e.name,
+                'Ангилал': e.category,
+                'Дүн': e.amount,
+                'Тэмдэглэл': e.notes || ''
+              }));
+              const wsExp = XLSX.utils.json_to_sheet(expRows);
+              wsExp['!cols'] = [{wch:12},{wch:28},{wch:16},{wch:14},{wch:24}];
+              XLSX.utils.book_append_sheet(wb, wsExp, 'Урсгал зардал');
+            }
+
             XLSX.writeFile(wb, `Tailan_${period}_${new Date().toISOString().split('T')[0]}.xlsx`);
           };
 
@@ -3460,6 +3654,51 @@ export default function Dashboard({ session, profile }) {
                   </div>
                 </div>
               </div>
+
+              {/* Ашгийн тооцооны түүх */}
+              {monthlyFinance.length > 0 && (
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white">
+                  <div className="flex items-center gap-2 text-emerald-600 text-[10px] font-bold tracking-widest mb-3">
+                    <DollarSign className="w-3 h-3" /> АШГИЙН ТООЦООНЫ ТҮҮХ
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                          <th className="px-2 py-2 text-left">Сар</th>
+                          <th className="px-2 py-2 text-right">Орлого</th>
+                          <th className="px-2 py-2 text-right">Захиалга</th>
+                          <th className="px-2 py-2 text-right">Нийт зардал</th>
+                          <th className="px-2 py-2 text-right">Цэвэр ашиг</th>
+                          <th className="px-2 py-2 text-right">Маржин</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {monthlyFinance.map(m => {
+                          const fixedTotal = Object.values(m.fixedExpenses || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+                          const varTotal = (m.orderCount || 0) * (m.variableCostPerOrder || 0);
+                          const dailyTotal = (dailyExpenses || [])
+                            .filter(e => e.date && e.date.startsWith(m.month))
+                            .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+                          const totalCost = fixedTotal + varTotal + dailyTotal;
+                          const profit = (m.revenue || 0) - totalCost;
+                          const margin = m.revenue > 0 ? (profit / m.revenue * 100) : 0;
+                          return (
+                            <tr key={m.id} className="hover:bg-slate-50/50">
+                              <td className="px-2 py-2.5 text-xs font-bold text-slate-700 whitespace-nowrap">{m.month}</td>
+                              <td className="px-2 py-2.5 text-right text-xs text-blue-600 font-bold whitespace-nowrap">{fmt(m.revenue)}₮</td>
+                              <td className="px-2 py-2.5 text-right text-xs text-slate-600 whitespace-nowrap">{fmt(m.orderCount)}</td>
+                              <td className="px-2 py-2.5 text-right text-xs text-orange-600 font-bold whitespace-nowrap">{fmt(totalCost)}₮</td>
+                              <td className={`px-2 py-2.5 text-right text-xs font-bold whitespace-nowrap ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{profit >= 0 ? '+' : ''}{fmt(profit)}₮</td>
+                              <td className={`px-2 py-2.5 text-right text-xs font-bold whitespace-nowrap ${margin >= 0 ? 'text-violet-600' : 'text-rose-600'}`}>{margin.toFixed(1)}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           );
         })()}
@@ -3482,6 +3721,13 @@ export default function Dashboard({ session, profile }) {
       {showAddExpense && (
         <Modal onClose={() => setShowAddExpense(false)} title="Тогтмол зардал нэмэх" icon={DollarSign} maxWidth="max-w-md">
           <AddExpenseForm onSave={addFixedExpense} onClose={() => setShowAddExpense(false)} />
+        </Modal>
+      )}
+
+      {/* Урсгал зардал нэмэх модал */}
+      {showAddDailyExpense && (
+        <Modal onClose={() => setShowAddDailyExpense(false)} title="Урсгал зардал бүртгэх" icon={ArrowDownCircle} maxWidth="max-w-md">
+          <AddDailyExpenseForm onSave={addDailyExpense} onClose={() => setShowAddDailyExpense(false)} defaultMonth={profitMonth} />
         </Modal>
       )}
 
