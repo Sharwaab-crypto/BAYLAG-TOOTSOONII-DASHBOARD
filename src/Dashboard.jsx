@@ -434,6 +434,7 @@ export default function Dashboard({ session, profile }) {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showReceiveStock, setShowReceiveStock] = useState(false);
   const [confirmingProductDelete, setConfirmingProductDelete] = useState(null); // { id, name, code }
+  const [editingProduct, setEditingProduct] = useState(null); // засаж буй бараа
 
   // Тооцооны төлөв
   const [reconciliations, setReconciliations] = useState([]);
@@ -685,6 +686,24 @@ export default function Dashboard({ session, profile }) {
     if (error) { alert('Бараа нэмэх алдаа: ' + error.message); return; }
 
     setProducts(prev => [...prev, { id, ...p }]);
+  };
+
+  const updateProduct = async (productId, updates) => {
+    const { error } = await supabase.from('products').update({
+      code: updates.code,
+      name: updates.name,
+      category: updates.category,
+      location: updates.location,
+      stock: updates.stock,
+      max_stock: updates.max,
+      cost_price: updates.costPrice,
+      sale_price: updates.salePrice,
+      updated_at: new Date().toISOString()
+    }).eq('id', productId);
+    if (error) { alert('Бараа засах алдаа: ' + error.message); return false; }
+
+    setProducts(prev => prev.map(p => p.id !== productId ? p : { ...p, ...updates }));
+    return true;
   };
 
   const receiveStock = async (productId, qty, newCostPrice) => {
@@ -2649,6 +2668,123 @@ export default function Dashboard({ session, profile }) {
   };
 
   // ====== БАРАА НЭМЭХ МОДАЛ ======
+  // ====== БАРАА ЗАСАХ МОДАЛ ======
+  const EditProductModal = ({ product, onClose }) => {
+    const [form, setForm] = useState({
+      code: product.code || '',
+      name: product.name || '',
+      category: product.category || 'Хүнсний',
+      location: product.location || '',
+      stock: product.stock ?? 0,
+      max: product.max ?? 100,
+      costPrice: product.costPrice ?? 0,
+      salePrice: product.salePrice ?? 0
+    });
+    const [saving, setSaving] = useState(false);
+
+    const margin = Number(form.salePrice) > 0
+      ? Math.round(((Number(form.salePrice) - Number(form.costPrice)) / Number(form.salePrice)) * 100)
+      : 0;
+
+    const handleSave = async () => {
+      if (!form.code.trim()) { alert('Дотоод код оруулна уу'); return; }
+      if (!form.name.trim()) { alert('Барааны нэр оруулна уу'); return; }
+      // Код давхцаж байгаа эсэх (өөрөөсөө бусад)
+      if (products.some(p => p.id !== product.id && p.code === form.code.trim())) {
+        alert('Энэ дотоод код өөр бараанд бүртгэгдсэн байна'); return;
+      }
+      setSaving(true);
+      const ok = await updateProduct(product.id, {
+        code: form.code.trim(),
+        name: form.name.trim(),
+        category: form.category,
+        location: form.location.trim() || '-',
+        stock: Number(form.stock) || 0,
+        max: Number(form.max) || 100,
+        costPrice: Number(form.costPrice) || 0,
+        salePrice: Number(form.salePrice) || 0
+      });
+      setSaving(false);
+      if (ok) onClose();
+    };
+
+    return (
+      <Modal onClose={onClose} title="Бараа засах" icon={Edit2} maxWidth="max-w-lg">
+        <div className="space-y-3">
+          <div className="bg-slate-50 rounded-lg p-2.5 flex items-center justify-between text-xs">
+            <span className="text-slate-500">Барааны ID:</span>
+            <span className="font-mono font-bold text-slate-700">{product.id}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Дотоод код *" hint="Жишээ: KOFE-AR250">
+              <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="SKU / Бар код" className="dash-input font-mono" />
+            </Field>
+            <Field label="Байршил" hint="Лангуу/тавиурын код">
+              <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="А-12" className="dash-input font-mono" />
+            </Field>
+          </div>
+
+          <Field label="Барааны нэр *">
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Жишээ: Кофе Arabica 250г" className="dash-input" />
+          </Field>
+
+          <Field label="Ангилал">
+            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="dash-input">
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
+
+          <div className="bg-emerald-50/60 rounded-xl p-4 space-y-3 border border-emerald-100">
+            <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Үнийн мэдээлэл</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Өртөг үнэ (₮)" hint="Авсан үнэ">
+                <input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} className="dash-input" />
+              </Field>
+              <Field label="Зарах үнэ (₮)" hint="Худалдаах үнэ">
+                <input type="number" value={form.salePrice} onChange={e => setForm({ ...form, salePrice: e.target.value })} className="dash-input" />
+              </Field>
+            </div>
+            {Number(form.costPrice) > 0 && Number(form.salePrice) > 0 && (
+              <div className="bg-white rounded-lg p-3 flex items-center justify-between">
+                <span className="text-xs text-slate-500">Маржин:</span>
+                <span className={`text-sm font-bold ${margin > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {margin}% ({(Number(form.salePrice) - Number(form.costPrice)).toLocaleString()}₮)
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-blue-50/60 rounded-xl p-4 space-y-3 border border-blue-100">
+            <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">Нөөцийн мэдээлэл</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Одоогийн нөөц (ширхэг)">
+                <input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="dash-input" />
+              </Field>
+              <Field label="Хамгийн их нөөц">
+                <input type="number" value={form.max} onChange={e => setForm({ ...form, max: e.target.value })} className="dash-input" />
+              </Field>
+            </div>
+            <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+              ⚠️ Нөөцийг гараар өөрчлөх нь орлого/зарлагын түүхэнд тусахгүй. Шинэ бараа авсан бол "Орлого нэмэх" товчийг ашиглана уу.
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} disabled={saving}
+                    className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+              Цуцлах
+            </button>
+            <button onClick={handleSave} disabled={saving}
+                    className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <Save className="w-4 h-4" /> {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
+
   const AddProductModal = ({ onClose }) => {
     const [form, setForm] = useState({
       code: '', name: '', category: 'Хүнсний', location: '',
@@ -3323,13 +3459,22 @@ export default function Dashboard({ session, profile }) {
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             {canEdit && (
-                              <button
-                                onClick={() => deleteProduct(p.id)}
-                                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                                title="Бараа устгах"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => setEditingProduct(p)}
+                                  className="p-1.5 rounded-lg hover:bg-violet-50 text-slate-400 hover:text-violet-600 transition-colors"
+                                  title="Бараа засах"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => deleteProduct(p.id)}
+                                  className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                                  title="Бараа устгах"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -3793,6 +3938,7 @@ export default function Dashboard({ session, profile }) {
       {formulaModalDept && <FormulaModal deptId={formulaModalDept} onClose={() => setFormulaModalDept(null)} />}
       {dailyEntryDeptId && <DailyEntryModal deptId={dailyEntryDeptId} onClose={() => setDailyEntryDeptId(null)} />}
       {showAddProduct && <AddProductModal onClose={() => setShowAddProduct(false)} />}
+      {editingProduct && <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} />}
       {showReceiveStock && <ReceiveStockModal onClose={() => setShowReceiveStock(false)} />}
       {showReconcileModal && <ReconcileModal onClose={() => setShowReconcileModal(false)} />}
       {viewingReconcile && <ViewReconcileModal rec={viewingReconcile} onClose={() => setViewingReconcile(null)} />}
