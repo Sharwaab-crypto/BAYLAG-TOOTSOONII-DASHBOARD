@@ -60,6 +60,77 @@ function Field({ label, children, hint }) {
   );
 }
 
+// ====== БАРАА ХАЙЖ СОНГОХ (search dropdown) ======
+function ProductSearchSelect({ products, value, excludeIds, onChange, fmt }) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const wrapRef = React.useRef(null);
+
+  const selected = products.find(p => p.id === value);
+
+  // Гадна дарвал хаах
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = products.filter(p => {
+    if (excludeIds.includes(p.id) && p.id !== value) return false;
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button type="button" onClick={() => setOpen(!open)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-left text-xs flex items-center justify-between hover:border-pink-300 focus:outline-none focus:border-pink-400">
+        <span className="truncate">
+          {selected ? (
+            <><span className="font-mono text-slate-500">[{selected.code}]</span> <span className="font-semibold text-slate-700">{selected.name}</span> <span className="text-slate-400">· {selected.stock}ш</span></>
+          ) : (
+            <span className="text-slate-400">Бараа сонгох...</span>
+          )}
+        </span>
+        <ChevronRight className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-1 w-full bg-white rounded-lg border border-slate-200 shadow-xl max-h-64 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-slate-100 sticky top-0 bg-white">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+                     placeholder="Нэр эсвэл кодоор хайх..."
+                     className="w-full pl-8 pr-2 py-1.5 text-xs rounded border border-slate-200 focus:outline-none focus:border-pink-400" />
+            </div>
+          </div>
+          <div className="overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-slate-400">Бараа олдсонгүй</div>
+            ) : filtered.map(p => (
+              <button key={p.id} type="button"
+                      onClick={() => { onChange(p.id); setOpen(false); setQuery(''); }}
+                      className={`w-full px-3 py-2 text-left text-xs hover:bg-pink-50 flex items-center justify-between ${p.id === value ? 'bg-pink-50/60' : ''}`}>
+                <span className="truncate">
+                  <span className="font-mono text-slate-500">[{p.code}]</span> <span className="font-semibold text-slate-700">{p.name}</span>
+                </span>
+                <span className="text-slate-400 flex-shrink-0 ml-2">{p.stock}ш</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ====== АШГИЙН ТООЦООНЫ ТАБ ======
 function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance, dailyExpenses, canEdit, onAddExpense, onDeleteExpense, onSaveMonthly, onAddDailyExpense, onDeleteDailyExpense, fmt }) {
   const current = monthlyFinance.find(m => m.month === profitMonth);
@@ -347,9 +418,9 @@ function ProfitTab({ profitMonth, setProfitMonth, fixedExpenses, monthlyFinance,
 
 function Modal({ onClose, title, icon: Icon, children, maxWidth = 'max-w-md' }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(88, 28, 135, 0.25)', backdropFilter: 'blur(8px)' }} onClick={onClose}>
-      <div className={`glass-strong rounded-3xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`} style={{ background: 'rgba(255, 255, 255, 0.92)' }} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-white/40 sticky top-0 z-10" style={{ background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(20px)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(88, 28, 135, 0.25)', backdropFilter: 'blur(8px)' }}>
+      <div className={`glass-strong rounded-3xl w-full ${maxWidth} max-h-[92vh] overflow-y-auto`} style={{ background: 'rgba(255, 255, 255, 0.96)' }}>
+        <div className="flex items-center justify-between p-4 border-b border-white/40 sticky top-0 z-10" style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)' }}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-md shadow-purple-500/30">
               <Icon className="w-4 h-4 text-white" />
@@ -399,13 +470,8 @@ export default function Dashboard({ session, profile }) {
     setTimeout(() => setRefreshing(false), 500);
   };
 
-  // Автомат refresh — 60 секунд тутамд бусдын өөрчлөлтийг авна
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadAllData();
-    }, 60000); // 60 секунд
-    return () => clearInterval(interval);
-  }, []);
+  // Автомат refresh-ийг болиулав — гараар "Шинэчлэх" товчоор шинэчилнэ
+  // (өмнө 60 секунд тутам бүх өгөгдлийг дахин ачаалж, ажлыг тасалдаг байсан)
 
   const [period, setPeriod] = useState('Сар');
   const [view, setView] = useState('Карт');
@@ -1800,11 +1866,9 @@ export default function Dashboard({ session, profile }) {
           {/* Дундаж утга оруулах sub-modal */}
           {bulkFill.open && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-                 style={{ background: 'rgba(88, 28, 135, 0.4)', backdropFilter: 'blur(8px)' }}
-                 onClick={() => setBulkFill({ ...bulkFill, open: false })}>
+                 style={{ background: 'rgba(88, 28, 135, 0.4)', backdropFilter: 'blur(8px)' }}>
               <div className="glass-strong rounded-2xl w-full max-w-md p-5"
-                   style={{ background: 'rgba(255, 255, 255, 0.95)' }}
-                   onClick={e => e.stopPropagation()}>
+                   style={{ background: 'rgba(255, 255, 255, 0.95)' }}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
@@ -1939,10 +2003,7 @@ export default function Dashboard({ session, profile }) {
         alert('Бараа бүртгэгдээгүй байна. Эхлээд "Бараа нөөц" таб руу очиж бараа нэмнэ үү.');
         return;
       }
-      const used = new Set(items.map(i => i.productId));
-      const available = products.find(p => !used.has(p.id));
-      if (!available) { alert('Бүх бараа сонгогдсон байна'); return; }
-      setItems([...items, { productId: available.id, qty: 1 }]);
+      setItems([...items, { productId: '', qty: 1 }]);
     };
     const updateItem = (idx, updates) => {
       setItems(items.map((it, i) => i === idx ? { ...it, ...updates } : it));
@@ -1952,6 +2013,7 @@ export default function Dashboard({ session, profile }) {
     const handleSave = () => {
       if (!label.trim()) { alert('Тооцооны нэр оруулна уу'); return; }
       if (items.length === 0) { alert('Дор хаяж нэг бараа сонгоно уу'); return; }
+      if (items.some(it => !it.productId)) { alert('Зарим мөрөнд бараа сонгогдоогүй байна. Бараа сонгоно уу эсвэл мөрийг устгана уу.'); return; }
       if (enrichedItems.some(it => it.qty <= 0)) { alert('Тоо хэмжээ 0-ээс их байх ёстой'); return; }
       if (hasInsufficientStock && deductedStock) {
         alert('Зарим барааны нөөц хүрэлцэхгүй байна. Тооцоог хадгалахын тулд тоог багасгах эсвэл "Нөөцөөс хасах"-ыг болиулна уу.');
@@ -1970,7 +2032,7 @@ export default function Dashboard({ session, profile }) {
     };
 
     return (
-      <Modal onClose={onClose} title="Тооцоо тулгах" icon={Receipt} maxWidth="max-w-2xl">
+      <Modal onClose={onClose} title="Тооцоо тулгах" icon={Receipt} maxWidth="max-w-4xl">
         <div className="space-y-4">
           {/* Толгой */}
           <div className="grid grid-cols-2 gap-3">
@@ -2004,8 +2066,8 @@ export default function Dashboard({ session, profile }) {
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-slate-50 px-3 py-2 flex items-center justify-between">
               <div className="text-xs font-bold text-slate-700">Бараа</div>
-              <button onClick={addItem} disabled={items.length >= products.length}
-                      className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={addItem}
+                      className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Мөр нэмэх
               </button>
             </div>
@@ -2018,23 +2080,23 @@ export default function Dashboard({ session, profile }) {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {items.map((item, idx) => {
-                    const enriched = enrichedItems[idx];
-                    if (!enriched) return null;
-                    const insufficient = deductedStock && enriched.qty > enriched.currentStock;
+                    const p = products.find(pr => pr.id === item.productId);
+                    const unitPrice = p ? (useCostPrice ? p.costPrice : p.salePrice) : 0;
+                    const lineTotal = (Number(item.qty) || 0) * unitPrice;
+                    const currentStock = p ? p.stock : 0;
+                    const insufficient = p && deductedStock && (Number(item.qty) || 0) > currentStock;
                     return (
                       <div key={idx} className="p-2.5 hover:bg-pink-50/30">
                         <div className="grid grid-cols-12 gap-2 items-center">
-                          <select
-                            value={item.productId}
-                            onChange={e => updateItem(idx, { productId: e.target.value })}
-                            className="col-span-6 dash-input text-xs"
-                          >
-                            {products.map(p => (
-                              <option key={p.id} value={p.id} disabled={items.some((i, j) => j !== idx && i.productId === p.id)}>
-                                [{p.code}] {p.name} · {p.stock}ш
-                              </option>
-                            ))}
-                          </select>
+                          <div className="col-span-6">
+                            <ProductSearchSelect
+                              products={products}
+                              value={item.productId}
+                              excludeIds={items.map(i => i.productId).filter(Boolean)}
+                              onChange={(pid) => updateItem(idx, { productId: pid })}
+                              fmt={fmt}
+                            />
+                          </div>
                           <input
                             type="number"
                             min="1"
@@ -2044,8 +2106,8 @@ export default function Dashboard({ session, profile }) {
                             placeholder="Тоо"
                           />
                           <div className="col-span-3 text-right">
-                            <div className="text-xs font-bold text-slate-800">{fmt(enriched.lineTotal)}₮</div>
-                            <div className="text-[10px] text-slate-400">× {fmt(enriched.unitPrice)}₮</div>
+                            <div className="text-xs font-bold text-slate-800">{fmt(lineTotal)}₮</div>
+                            <div className="text-[10px] text-slate-400">{p ? `× ${fmt(unitPrice)}₮` : 'бараа сонго'}</div>
                           </div>
                           <button onClick={() => removeItem(idx)} className="col-span-1 p-1.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600">
                             <X className="w-3.5 h-3.5 mx-auto" />
@@ -2053,7 +2115,7 @@ export default function Dashboard({ session, profile }) {
                         </div>
                         {insufficient && (
                           <div className="text-[10px] text-rose-600 mt-1 ml-1">
-                            ⚠ Нөөц хүрэлцэхгүй: одоо {enriched.currentStock}ш байна
+                            ⚠ Нөөц хүрэлцэхгүй: одоо {currentStock}ш байна
                           </div>
                         )}
                       </div>
