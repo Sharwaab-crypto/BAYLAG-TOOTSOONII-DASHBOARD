@@ -112,8 +112,14 @@ function ProductSearchSelect({ products, value, excludeIds, onChange, fmt }) {
             </div>
           </div>
           <div className="overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-slate-400">Бараа олдсонгүй</div>
+            {products.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-slate-400">
+                Бараа бүртгэгдээгүй байна.<br />"Бараа нөөц" таб руу очиж нэмнэ үү.
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-slate-400">
+                "{query}" гэсэн бараа олдсонгүй
+              </div>
             ) : filtered.map(p => (
               <button key={p.id} type="button"
                       onClick={() => { onChange(p.id); setOpen(false); setQuery(''); }}
@@ -2063,8 +2069,8 @@ export default function Dashboard({ session, profile }) {
           </div>
 
           {/* Барааны жагсаалт */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            <div className="bg-slate-50 px-3 py-2 flex items-center justify-between">
+          <div className="border border-slate-200 rounded-xl overflow-visible">
+            <div className="bg-slate-50 px-3 py-2 flex items-center justify-between rounded-t-xl">
               <div className="text-xs font-bold text-slate-700">Бараа</div>
               <button onClick={addItem}
                       className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1">
@@ -2072,7 +2078,7 @@ export default function Dashboard({ session, profile }) {
               </button>
             </div>
 
-            <div className="max-h-[40vh] overflow-y-auto">
+            <div>
               {items.length === 0 ? (
                 <div className="px-3 py-6 text-center text-xs text-slate-400">
                   Мөр нэмэх товчийг дарж бараа оруулна уу
